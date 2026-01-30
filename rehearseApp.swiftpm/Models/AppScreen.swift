@@ -6,9 +6,10 @@
 //
 enum AppScreen {
     case home
-    case grounding
-    case recording
-    case feedback
-    case reflection
+    case notes(PracticeMode)
+    case grounding(PracticeMode)
+    case recording(PracticeMode)
+    case feedback(Recording)
     case history
+    case reflection
 }

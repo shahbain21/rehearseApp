@@ -9,7 +9,8 @@ import SwiftUI
 
 struct HomeView: View {
     @Binding var currentScreen: AppScreen
-    @State private var selectedMode: PracticeMode = .warmUp
+    @State private var selectedMode: PracticeMode = .free
+
 
     var body: some View {
         VStack(spacing: 24) {
@@ -23,51 +24,56 @@ struct HomeView: View {
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
 
+            // Practice modes
             VStack(spacing: 16) {
 
                 PracticeCard(
                     title: "Interview",
                     subtitle: "Answer clearly and confidently",
-                    isSelected: selectedMode == .warmUp
+                    isSelected: selectedMode == .interview
                 ) {
-                    selectedMode = .warmUp
+                    selectedMode = .interview
                 }
 
                 PracticeCard(
                     title: "Presentation",
                     subtitle: "Practice pacing and emphasis",
-                    isSelected: selectedMode == .clarity
+                    isSelected: selectedMode == .presentation
                 ) {
-                    selectedMode = .clarity
+                    selectedMode = .presentation
                 }
 
                 PracticeCard(
                     title: "Storytelling",
                     subtitle: "Work on flow and engagement",
-                    isSelected: selectedMode == .structure
+                    isSelected: selectedMode == .storytelling
                 ) {
-                    selectedMode = .structure
+                    selectedMode = .storytelling
                 }
 
                 PracticeCard(
                     title: "Free Practice",
                     subtitle: "Just speak and reflect",
-                    isSelected: false
+                    isSelected: selectedMode == .free
                 ) {
-                    // For now, map to any existing mode
-                    selectedMode = .warmUp
+                    selectedMode = .free
                 }
             }
+            
+            // Start button
+                       Button("Start Practice") {
+                           if selectedMode.requiresNotes {
+                               currentScreen = .notes(selectedMode)
+                           } else {
+                               currentScreen = .grounding(selectedMode)
+                           }
+                       }
+                       .buttonStyle(.borderedProminent)
+                       .controlSize(.large)
 
-            Button("Start Practice") {
-                currentScreen = .grounding
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-
-            Spacer()
-        }
-        .padding()
+                       Spacer()
+                   }
+                   .padding()
     }
 }
 

@@ -29,6 +29,7 @@ final class AudioManager: NSObject, ObservableObject {
     // MARK: - Recording Lifecycle State
 
     private var audioRecorder: AVAudioRecorder?
+    private var audioPlayer: AVAudioPlayer?
     private var meterTimer: Timer?
     private var recordingStartTime: Date?
     private var currentRecordingURL: URL?
@@ -140,7 +141,19 @@ final class AudioManager: NSObject, ObservableObject {
         )
         try session.setActive(true)
     }
-
+    
+    // Playing Audio
+    func play(_ recording: Recording) {
+        do {
+            audioPlayer = try AVAudioPlayer(contentsOf: recording.url)
+            audioPlayer?.prepareToPlay()
+            audioPlayer?.play()
+        } catch {
+            print("Playback failed:", error)
+        }
+    }
+    
+    
     // MARK: - Metering & Speech Analysis
 
     private func startMetering() {

@@ -8,6 +8,8 @@ import SwiftUI
 
 struct GroundingView: View {
     @Binding var currentScreen: AppScreen
+    let mode: PracticeMode
+
 
     @State private var isBreathingIn = true
     @State private var secondsRemaining = 6
@@ -53,15 +55,18 @@ struct GroundingView: View {
             if secondsRemaining > 1 {
                 secondsRemaining -= 1
             } else {
-                currentScreen = .recording
+                currentScreen = .recording(mode)
             }
         }
         .onTapGesture {
-            currentScreen = .recording
+            currentScreen = .recording(mode)
         }
     }
 }
 
 #Preview {
-    GroundingView(currentScreen: .constant(.grounding))
+    GroundingView(
+        currentScreen: .constant(.grounding(.presentation)),
+        mode: .presentation
+    )
 }

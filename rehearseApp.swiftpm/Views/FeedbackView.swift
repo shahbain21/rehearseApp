@@ -120,9 +120,9 @@ struct FeedbackView: View {
         pauses: [0.8, 1.1, 2.4],
         notes: nil
     )
-    
+
     FeedbackView(
-        currentScreen: .constant(.feedback),
+        currentScreen: .constant(.feedback(recording)),
         recording: recording
     )
 }

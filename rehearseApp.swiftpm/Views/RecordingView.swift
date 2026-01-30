@@ -4,14 +4,14 @@
 //
 //  Created by Mohamed Shahbain on 1/1/26.
 //
+
 import SwiftUI
 
 struct RecordingView: View {
 
     @Binding var currentScreen: AppScreen
     @ObservedObject var audioManager: AudioManager
-
-    let practiceMode: String = "Clarity Practice"
+    let mode: PracticeMode
 
     var body: some View {
         VStack(spacing: 20) {
@@ -19,16 +19,17 @@ struct RecordingView: View {
             Spacer()
 
             // Mode context
-            Text(practiceMode)
+            Text(modeTitle)
                 .font(.system(size: 14))
-                .foregroundColor(.gray)
+                .foregroundColor(.secondary)
 
             // Gentle guidance
             Text("Speak naturally. Pauses are welcome.")
                 .font(.system(size: 16))
-                .foregroundColor(.gray)
+                .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
 
+            // Notes overlay (if any)
             if let notes = NotesStore.shared.currentNotes, !notes.isEmpty {
                 ScrollView {
                     Text(notes)
@@ -40,7 +41,7 @@ struct RecordingView: View {
                 .background(Color.gray.opacity(0.08))
                 .cornerRadius(12)
             }
-            
+
             // Timer
             Text(formatTime(audioManager.elapsedTime))
                 .font(.system(size: 36, weight: .medium))
@@ -59,18 +60,11 @@ struct RecordingView: View {
                     .background(audioManager.isRecording ? Color.red : Color.blue)
                     .clipShape(Circle())
             }
-            
+
+            // History shortcut
             Button("View History") {
                 withAnimation {
                     currentScreen = .history
-                }
-            }
-            .font(.system(size: 14))
-            .foregroundColor(.blue)
-            
-            Button("See Feedback") {
-                withAnimation {
-                    currentScreen = .feedback
                 }
             }
             .font(.system(size: 14))
@@ -80,7 +74,7 @@ struct RecordingView: View {
             if audioManager.isRecording {
                 Text("You can stop anytime.")
                     .font(.system(size: 13))
-                    .foregroundColor(.gray)
+                    .foregroundColor(.secondary)
                     .padding(.top, 8)
             }
 
@@ -91,9 +85,29 @@ struct RecordingView: View {
 
     // MARK: - Helpers
 
+    private var modeTitle: String {
+        switch mode {
+        case .interview:
+            return "Interview Practice"
+        case .presentation:
+            return "Presentation Practice"
+        case .storytelling:
+            return "Storytelling Practice"
+        case .free:
+            return "Free Practice"
+        }
+    }
+
     private func toggleRecording() {
         if audioManager.isRecording {
             audioManager.stopRecording()
+
+            // Navigate to feedback for the latest recording
+            if let latest = audioManager.recordings.first {
+                withAnimation {
+                    currentScreen = .feedback(latest)
+                }
+            }
         } else {
             audioManager.startRecording()
         }
@@ -108,11 +122,14 @@ struct RecordingView: View {
 
 #Preview("Recording View") {
     let audioManager = AudioManager()
-    audioManager.elapsedTime = 42
-    audioManager.isRecording = false
 
-    return RecordingView(
-        currentScreen: .constant(.recording),
-        audioManager: audioManager
+    let _ = {
+        audioManager.isRecording = false
+    }()
+
+    RecordingView(
+        currentScreen: .constant(.recording(.presentation)),
+        audioManager: audioManager,
+        mode: .presentation
     )
 }

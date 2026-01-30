@@ -9,30 +9,33 @@ struct ContentView: View {
         case .home:
             HomeView(currentScreen: $screen)
 
-        case .grounding:
-            GroundingView(currentScreen: $screen)
+        case .notes(let mode):
+            NotesView(currentScreen: $screen, mode: mode)
 
-        case .recording:
+        case .grounding(let mode):
+            GroundingView(currentScreen: $screen, mode: mode)
+
+        case .recording(let mode):
             RecordingView(
                 currentScreen: $screen,
-                audioManager: audioManager
+                audioManager: audioManager,
+                mode: mode
             )
 
-        case .feedback:
-            let recording = audioManager.recordings.first!
+        case .feedback(let recording):
             FeedbackView(
                 currentScreen: $screen,
                 recording: recording
             )
-
-        case .reflection:
-            ReflectionView(currentScreen: $screen)
 
         case .history:
             HistoryView(
                 currentScreen: $screen,
                 audioManager: audioManager
             )
+
+        case .reflection:
+            ReflectionView(currentScreen: $screen)
         }
     }
 }

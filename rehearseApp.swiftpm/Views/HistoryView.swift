@@ -13,25 +13,53 @@ struct HistoryView: View {
 
     var body: some View {
         List(audioManager.recordings) { recording in
-            VStack(alignment: .leading) {
-                Text(recording.date.formatted())
-                    .font(.headline)
+            HStack(spacing: 12) {
 
-                Text("Duration: \(recording.duration, specifier: "%.1f")s")
-                Text("Speaking: \(recording.speakingTime, specifier: "%.1f")s")
-                Text("Pauses: \(recording.pauses.count)")
+                // ▶️ Play button
+                Button {
+                    audioManager.play(recording)
+                } label: {
+                    Image(systemName: "play.circle.fill")
+                        .font(.system(size: 28))
+                }
+                .buttonStyle(.plain)
+
+                // Recording info
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(recording.date.formatted())
+                        .font(.headline)
+
+                    Text("Duration: \(recording.duration, specifier: "%.1f")s")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+
+                    Text("Pauses: \(recording.pauses.count)")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+
+                    if let notes = recording.notes, !notes.isEmpty {
+                        Text("Has notes")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                Spacer()
+
+                // ➤ View feedback
+                Button {
+                    currentScreen = .feedback(recording)
+                } label: {
+                    Image(systemName: "chevron.right")
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
             }
+            .padding(.vertical, 8)
         }
-        
-        Button("Recording") {
-            withAnimation {
-                currentScreen = .recording
-            }
-        }
+        .navigationTitle("History")
     }
 }
-
-
 #Preview("History View") {
     let audioManager = AudioManager()
 
