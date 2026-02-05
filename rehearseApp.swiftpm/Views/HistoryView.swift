@@ -12,54 +12,64 @@ struct HistoryView: View {
     @ObservedObject var audioManager: AudioManager
 
     var body: some View {
-        List(audioManager.recordings) { recording in
-            HStack(spacing: 12) {
+        List {
+            ForEach(audioManager.recordings) { recording in
+                HStack(spacing: 12) {
 
-                // ▶️ Play button
-                Button {
-                    audioManager.play(recording)
-                } label: {
-                    Image(systemName: "play.circle.fill")
-                        .font(.system(size: 28))
-                }
-                .buttonStyle(.plain)
+                    // ▶️ Play button
+                    Button {
+                        audioManager.play(recording)
+                    } label: {
+                        Image(systemName: "play.circle.fill")
+                            .font(.system(size: 28))
+                    }
+                    .buttonStyle(.plain)
 
-                // Recording info
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(recording.date.formatted())
-                        .font(.headline)
+                    // Recording info
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(recording.date.formatted())
+                            .font(.headline)
 
-                    Text("Duration: \(recording.duration, specifier: "%.1f")s")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        Text("Duration: \(recording.duration, specifier: "%.1f")s")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
 
-                    Text("Pauses: \(recording.pauses.count)")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        Text("Pauses: \(recording.pauses.count)")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
 
-                    if let notes = recording.notes, !notes.isEmpty {
-                        Text("Has notes")
-                            .font(.caption)
+                        if let notes = recording.notes, !notes.isEmpty {
+                            Text("Has notes")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+
+                    Spacer()
+
+                    // ➤ View feedback
+                    Button {
+                        currentScreen = .feedback(recording)
+                    } label: {
+                        Image(systemName: "chevron.right")
                             .foregroundColor(.secondary)
                     }
+                    .buttonStyle(.plain)
                 }
-
-                Spacer()
-
-                // ➤ View feedback
-                Button {
-                    currentScreen = .feedback(recording)
-                } label: {
-                    Image(systemName: "chevron.right")
-                        .foregroundColor(.secondary)
+                .padding(.vertical, 8)
+                .swipeActions(edge: .trailing) {
+                    Button(role: .destructive) {
+                        audioManager.deleteRecording(recording)
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
                 }
-                .buttonStyle(.plain)
             }
-            .padding(.vertical, 8)
         }
         .navigationTitle("History")
     }
 }
+
 #Preview("History View") {
     let audioManager = AudioManager()
 

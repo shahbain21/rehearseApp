@@ -77,25 +77,25 @@ struct FeedbackView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("What went well")
                     .font(.system(size: 12))
-                    .foregroundColor(.gray)
+                    .foregroundColor(.secondary)
 
                 Text(feedback.whatWentWell)
                     .foregroundColor(.primary)
             }
             .padding()
-            .background(Color.white)
+            .background(Color(.secondarySystemBackground))
             .cornerRadius(16)
 
             VStack(alignment: .leading, spacing: 8) {
                 Text("For next time")
                     .font(.system(size: 12))
-                    .foregroundColor(.gray)
+                    .foregroundColor(.secondary)
 
                 Text(feedback.improvementSuggestion)
                     .foregroundColor(.primary)
             }
             .padding()
-            .background(Color.white)
+            .background(Color(.secondarySystemBackground))
             .cornerRadius(16)
 
             Button("Reflect") {

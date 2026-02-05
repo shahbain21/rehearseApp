@@ -9,8 +9,7 @@ import SwiftUI
 
 struct HomeView: View {
     @Binding var currentScreen: AppScreen
-    @State private var selectedMode: PracticeMode = .free
-
+    @State private var selectedMode: PracticeMode? = nil
 
     var body: some View {
         VStack(spacing: 24) {
@@ -19,7 +18,7 @@ struct HomeView: View {
             Text("What are you practicing?")
                 .font(.system(size: 28, weight: .semibold))
 
-            Text("Choose a practice mode.\nEach focuses on a different speaking style.")
+            Text("Select a practice mode to continue.")
                 .font(.system(size: 16))
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -59,21 +58,25 @@ struct HomeView: View {
                     selectedMode = .free
                 }
             }
-            
-            // Start button
-                       Button("Start Practice") {
-                           if selectedMode.requiresNotes {
-                               currentScreen = .notes(selectedMode)
-                           } else {
-                               currentScreen = .grounding(selectedMode)
-                           }
-                       }
-                       .buttonStyle(.borderedProminent)
-                       .controlSize(.large)
 
-                       Spacer()
-                   }
-                   .padding()
+            // Start button
+            Button("Start Practice") {
+                guard let mode = selectedMode else { return }
+
+                if mode.requiresNotes {
+                    currentScreen = .notes(mode)
+                } else {
+                    currentScreen = .grounding(mode)
+                }
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .disabled(selectedMode == nil)
+            .opacity(selectedMode == nil ? 0.5 : 1)
+
+            Spacer()
+        }
+        .padding()
     }
 }
 
