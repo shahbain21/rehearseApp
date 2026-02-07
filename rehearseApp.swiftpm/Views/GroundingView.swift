@@ -83,7 +83,7 @@ struct GroundingView: View {
                                 .animation(.easeInOut(duration: 0.3), value: secondsRemaining)
                         }
                     }
-                    
+                    // Countdown
                     Text("Starting in \(secondsRemaining)...")
                         .font(.system(size: 15))
                         .foregroundColor(.white.opacity(0.5))

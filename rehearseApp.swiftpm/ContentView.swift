@@ -25,7 +25,8 @@ struct ContentView: View {
         case .feedback(let recording):
             FeedbackView(
                 currentScreen: $screen,
-                recording: recording
+                recording: recording,
+                audioManager: audioManager
             )
 
         case .history:
@@ -34,8 +35,11 @@ struct ContentView: View {
                 audioManager: audioManager
             )
 
-        case .reflection:
-            ReflectionView(currentScreen: $screen)
+        case .reflection(let recording):
+            ReflectionView(
+                currentScreen: $screen,
+                recording: recording
+            )
         }
     }
 }

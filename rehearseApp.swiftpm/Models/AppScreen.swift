@@ -11,5 +11,17 @@ enum AppScreen {
     case recording(PracticeMode)
     case feedback(Recording)
     case history
-    case reflection
+    case reflection(Recording?)  // ✅ Updated to include optional recording
+}
+
+
+// Make Recording conform to Hashable for AppScreen
+extension Recording: Hashable {
+    static func == (lhs: Recording, rhs: Recording) -> Bool {
+        lhs.id == rhs.id
+    }
+    
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
 }

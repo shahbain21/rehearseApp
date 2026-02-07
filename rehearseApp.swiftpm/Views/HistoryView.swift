@@ -48,14 +48,15 @@ struct HistoryView: View {
                     EmptyHistoryView()
                 } else {
                     ScrollView {
+                        // Scrollable list of recordings
                         LazyVStack(spacing: 12) {
                             ForEach(audioManager.recordings) { recording in
                                 RecordingRow(
                                     recording: recording,
-                                    isPlaying: audioManager.currentlyPlayingID == recording.id,
-                                    onPlay: { audioManager.togglePlayback(for: recording) },
-                                    onViewFeedback: { currentScreen = .feedback(recording) },
-                                    onDelete: { audioManager.deleteRecording(recording) }
+                                    isPlaying: audioManager.currentlyPlayingID == recording.id,// playing audio
+                                    onPlay: { audioManager.togglePlayback(for: recording) }, // calls playback to play audio
+                                    onViewFeedback: { currentScreen = .feedback(recording) },// take you to feedback screen
+                                    onDelete: { audioManager.deleteRecording(recording) }//deletes recording
                                 )
                             }
                         }
@@ -65,19 +66,21 @@ struct HistoryView: View {
                 }
             }
         }
+        // Stops playing audio when you leave page
         .onDisappear {
             audioManager.stopPlayback()
         }
     }
 }
 
-// MARK: - Empty History View
+// Empty History View
 
 struct EmptyHistoryView: View {
     var body: some View {
         VStack(spacing: 16) {
             Spacer()
             
+            // Icon
             ZStack {
                 Circle()
                     .fill(Color.white.opacity(0.05))
@@ -142,6 +145,7 @@ struct RecordingRow: View {
 
             // Recording info
             VStack(alignment: .leading, spacing: 6) {
+                // Recording Date and indicator animation
                 HStack(spacing: 8) {
                     Text(formatDate(recording.date))
                         .font(.system(size: 16, weight: .semibold))
@@ -151,7 +155,6 @@ struct RecordingRow: View {
                         PlayingIndicator()
                     }
                 }
-
                 HStack(spacing: 12) {
                     // Duration
                     HStack(spacing: 4) {
@@ -243,6 +246,7 @@ struct RecordingRow: View {
     
     // MARK: - Helpers
     
+    // Gives date of the audio
     private func formatDate(_ date: Date) -> String {
         let calendar = Calendar.current
         
@@ -255,6 +259,7 @@ struct RecordingRow: View {
         }
     }
     
+    // Gives length of the audio
     private func formatDuration(_ duration: TimeInterval) -> String {
         let minutes = Int(duration) / 60
         let seconds = Int(duration) % 60
