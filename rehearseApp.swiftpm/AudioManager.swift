@@ -25,6 +25,11 @@ final class AudioManager: NSObject, ObservableObject {
     @Published var speakingTime: TimeInterval = 0
     @Published var pauses: [TimeInterval] = []
     @Published var recordings: [Recording] = []
+    // Add these properties to AudioManager
+    @Published var currentlyPlayingID: UUID?
+    @Published var isPlaying = false
+    @Published var currentAudioLevel: Float = 0.0
+
 
     // MARK: - Recording Lifecycle State
 
@@ -34,6 +39,13 @@ final class AudioManager: NSObject, ObservableObject {
     private var recordingStartTime: Date?
     private var currentRecordingURL: URL?
     private var silenceStartTime: Date?
+    
+    private lazy var playerDelegateHandler: AudioPlayerDelegateHandler = {
+            let handler = AudioPlayerDelegateHandler()
+            handler.audioManager = self
+            return handler
+        }()
+    
     var speakingSegmentCount: Int {
         max(pauses.count - 1, 1)
     }
@@ -143,16 +155,54 @@ final class AudioManager: NSObject, ObservableObject {
     }
     
     // Playing Audio
+
+    // Update your play method
     func play(_ recording: Recording) {
-        do {
-            audioPlayer = try AVAudioPlayer(contentsOf: recording.url)
-            audioPlayer?.prepareToPlay()
-            audioPlayer?.play()
-        } catch {
-            print("Playback failed:", error)
+          // Stop any current playback first
+          stopPlayback()
+          
+          guard FileManager.default.fileExists(atPath: recording.url.path) else {
+              print("Recording file not found at:", recording.url.path)
+              return
+          }
+          
+          do {
+              let session = AVAudioSession.sharedInstance()
+              try session.setCategory(.playback, mode: .default)
+              try session.setActive(true)
+              
+              audioPlayer = try AVAudioPlayer(contentsOf: recording.url)
+              audioPlayer?.delegate = playerDelegateHandler
+              audioPlayer?.prepareToPlay()
+              audioPlayer?.play()
+              
+              currentlyPlayingID = recording.id
+              isPlaying = true
+          } catch {
+              print("Playback failed:", error)
+          }
+      }
+
+    func stopPlayback() {
+        audioPlayer?.stop()
+        audioPlayer = nil
+        currentlyPlayingID = nil
+        isPlaying = false
+    }
+
+    func togglePlayback(for recording: Recording) {
+        if currentlyPlayingID == recording.id, isPlaying {
+            stopPlayback()
+        } else {
+            play(recording)
         }
     }
     
+    func playbackDidFinish() {
+            currentlyPlayingID = nil
+            isPlaying = false
+        }
+        
     
     // MARK: - Metering & Speech Analysis
 
@@ -180,12 +230,25 @@ final class AudioManager: NSObject, ObservableObject {
         let power = recorder.averagePower(forChannel: 0)
         let now = Date()
 
+        // Normalize power to 0...1 range
+        currentAudioLevel = normalizedPowerLevel(from: power)
+
         // Total time since recording started
         elapsedTime = now.timeIntervalSince(recordingStartTime ?? now)
 
         handleSpeechState(for: power, at: now)
     }
 
+    private func normalizedPowerLevel(from decibels: Float) -> Float {
+        // Decibels typically range from -160 (silent) to 0 (max)
+        // We'll map -60...0 to 0...1 for better visual range
+        let minDb: Float = -60.0
+        let maxDb: Float = 0.0
+        
+        let clamped = max(minDb, min(decibels, maxDb))
+        return (clamped - minDb) / (maxDb - minDb)
+    }
+    
     private func handleSpeechState(for power: Float, at time: Date) {
         let isSpeaking = power > speechThreshold
 
@@ -237,13 +300,13 @@ final class AudioManager: NSObject, ObservableObject {
             duration: elapsedTime,
             speakingTime: speakingTime,
             pauses: pauses,
-            notes: NotesStore.shared.currentNotes   // ✅ attach notes
+            notes: NotesStore.shared.currentNotes
         )
 
         recordings.insert(recording, at: 0)
         persistRecordings()
 
-        NotesStore.shared.currentNotes = nil // ✅ clear
+        NotesStore.shared.currentNotes = nil
     }
 
     func deleteRecording(_ recording: Recording) {
@@ -328,5 +391,22 @@ final class AudioManager: NSObject, ObservableObject {
     /// number of speaking segments (pauses).
     var averageSpeakingSegmentLength: TimeInterval {
         speakingTime / Double(speakingSegmentCount)
+    }
+}
+
+private class AudioPlayerDelegateHandler: NSObject, AVAudioPlayerDelegate {
+    weak var audioManager: AudioManager?
+    
+    func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+        Task { @MainActor [weak audioManager] in
+            audioManager?.playbackDidFinish()
+        }
+    }
+    
+    func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
+        print("Audio decode error:", error?.localizedDescription ?? "unknown")
+        Task { @MainActor [weak audioManager] in
+            audioManager?.playbackDidFinish()
+        }
     }
 }
