@@ -19,7 +19,7 @@ struct RecordingView: View {
     var body: some View {
         ZStack {
             // Dark background
-            Color(red: 0.08, green: 0.08, blue: 0.14)
+            Color(hex: "141424")
                 .ignoresSafeArea()
 
             VStack(spacing: 24) {
@@ -227,7 +227,7 @@ struct RecordingView: View {
         }
     }
 
-    // MARK: - Actions
+    // Actions
 
     private func toggleRecording() {
         if audioManager.isRecording {

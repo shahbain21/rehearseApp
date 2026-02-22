@@ -12,21 +12,21 @@ enum PracticeMode: Codable, Hashable {
     case storytelling
     case free
     
-    /// Whether this mode should show the notes screen
+    // Whether this mode should show the notes screen
     var requiresNotes: Bool {
         switch self {
         case .interview:
-            return true      // Key points, questions to ask
+            return true
         case .presentation:
-            return true      // Talking points, slide outline
+            return true
         case .storytelling:
-            return true      // Story beats, outline
+            return true
         case .free:
-            return false     // Just free speaking
+            return false     
         }
     }
     
-    /// Display name for the mode
+    // Display name for the mode
     var displayName: String {
         switch self {
         case .interview:
@@ -40,7 +40,7 @@ enum PracticeMode: Codable, Hashable {
         }
     }
     
-    /// Icon for the mode
+    // Icon for the mode
     var icon: String {
         switch self {
         case .interview:
@@ -54,7 +54,7 @@ enum PracticeMode: Codable, Hashable {
         }
     }
     
-    /// Subtitle description
+    // Subtitle description
     var subtitle: String {
         switch self {
         case .interview:

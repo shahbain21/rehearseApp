@@ -14,8 +14,29 @@ struct Recording: Codable, Identifiable {
     let speakingTime: TimeInterval
     let pauses: [TimeInterval]
     let notes: String?
+    let volumeSamples: [Float]?
     
-    // MARK: - Computed Properties for Feedback
+    init(
+            id: UUID,
+            url: URL,
+            date: Date,
+            duration: TimeInterval,
+            speakingTime: TimeInterval,
+            pauses: [TimeInterval],
+            notes: String?,
+            volumeSamples: [Float]? = nil  
+        ) {
+            self.id = id
+            self.url = url
+            self.date = date
+            self.duration = duration
+            self.speakingTime = speakingTime
+            self.pauses = pauses
+            self.notes = notes
+            self.volumeSamples = volumeSamples
+        }
+    
+    // Computed Properties for Feedback
     
     var speakingRatio: Double {
         guard duration > 0 else { return 0 }

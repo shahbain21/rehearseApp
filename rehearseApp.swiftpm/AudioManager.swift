@@ -18,20 +18,20 @@ import Foundation
 @MainActor
 final class AudioManager: NSObject, ObservableObject {
 
-    // MARK: - Public State (Observed by UI)
 
     @Published var isRecording = false
     @Published var elapsedTime: TimeInterval = 0
     @Published var speakingTime: TimeInterval = 0
     @Published var pauses: [TimeInterval] = []
     @Published var recordings: [Recording] = []
-    // Add these properties to AudioManager
     @Published var currentlyPlayingID: UUID?
     @Published var isPlaying = false
     @Published var currentAudioLevel: Float = 0.0
+    @Published var volumeSamples: [Float] = []
+    private var meterUpdateCount: Int = 0
 
 
-    // MARK: - Recording Lifecycle State
+    // Recording Lifecycle State
 
     private var audioRecorder: AVAudioRecorder?
     private var audioPlayer: AVAudioPlayer?
@@ -45,10 +45,7 @@ final class AudioManager: NSObject, ObservableObject {
             handler.audioManager = self
             return handler
         }()
-    
-    var speakingSegmentCount: Int {
-        max(pauses.count - 1, 1)
-    }
+
     private var recordingsFileURL: URL {
         FileManager.default
             .urls(for: .documentDirectory, in: .userDomainMask)[0]
@@ -56,9 +53,9 @@ final class AudioManager: NSObject, ObservableObject {
     }
 
 
-    // MARK: - Speech Detection State
+    // Speech Detection State
 
-    /// Whether the user is currently speaking or silent
+    // Whether the user is currently speaking or silent
     private enum SpeechState {
         case speaking
         case silent
@@ -66,24 +63,45 @@ final class AudioManager: NSObject, ObservableObject {
 
     private var speechState: SpeechState = .silent
 
-    /// Time when the speech state last changed
-    //private var lastSpeechStateChange = Date()
 
-    // MARK: - Configuration
+    // Configuration
 
-    /// Loudness above this value is treated as speech (in dB)
+    // Loudness above this value is treated as speech (in dB)
     private let speechThreshold: Float = -55.0
     
-    /// How often we sample microphone levels
+    // How often we sample microphone levels
     private let meterInterval: TimeInterval = 0.1
 
-    // MARK: - Public API (Recording Lifecycle)
 
+    // Loads recording when audio manager is initialized
     override init() {
         super.init()
         loadRecordings()
     }
     
+    // Loads the recordings from documents into array
+    private func loadRecordings() {
+        do {
+            let data = try Data(contentsOf: recordingsFileURL)
+            recordings = try JSONDecoder().decode([Recording].self, from: data)
+        } catch {
+            recordings = []
+        }
+    }
+    
+    // Encodes recordings into JSON and writes to disk
+    private func persistRecordings() {
+        do {
+            let data = try JSONEncoder().encode(recordings)
+            try data.write(to: recordingsFileURL)
+        } catch {
+            print("Failed to save recordings:", error)
+        }
+    }
+    
+    // Recording Life Cycle
+    
+    // Asks permission than starts recording
     func startRecording() {
         requestMicrophonePermission { granted in
             guard granted else {
@@ -98,22 +116,6 @@ final class AudioManager: NSObject, ObservableObject {
             }
         }
     }
-    
-    private func loadRecordings() {
-        do {
-            let data = try Data(contentsOf: recordingsFileURL)
-            recordings = try JSONDecoder().decode([Recording].self, from: data)
-        } catch {
-            recordings = []
-        }
-    }
-
-    func stopRecording() {
-        finalizeLastPauseIfNeeded()   // ✅ MISSING
-        endRecordingSession()
-        saveRecording()
-    }
-    // MARK: - Recording Session Setup
 
     private func beginRecordingSession() throws {
         try configureAudioSession()
@@ -133,39 +135,168 @@ final class AudioManager: NSObject, ObservableObject {
 
         isRecording = true
     }
+    
+    // Ends recording and saves it
+    func stopRecording() {
+        finalizeLastPauseIfNeeded()
+        endRecordingSession()
+        saveRecording()
+    }
 
+    // Saves recording and adds it to array
+    private func saveRecording() {
+        guard let url = currentRecordingURL else { return }
+
+        let recording = Recording(
+            id: UUID(),
+            url: url,
+            date: Date(),
+            duration: elapsedTime,
+            speakingTime: speakingTime,
+            pauses: pauses,
+            notes: NotesStore.shared.currentNotes,
+            volumeSamples: volumeSamples.isEmpty ? nil : volumeSamples
+        )
+
+        recordings.insert(recording, at: 0)
+        persistRecordings()
+
+        NotesStore.shared.currentNotes = nil
+    }
+
+    // Deletes Recording from array and disk
+    func deleteRecording(_ recording: Recording) {
+        try? FileManager.default.removeItem(at: recording.url)
+        recordings.removeAll { $0.id == recording.id }
+        persistRecordings()
+    }
+
+    // Stops recording and notifies UI
     private func endRecordingSession() {
         audioRecorder?.stop()
         audioRecorder = nil
         stopMetering()
         isRecording = false
     }
+    
+    // Metering & Speech Analysis
 
-    private func configureAudioSession() throws {
-        let session = AVAudioSession.sharedInstance()
-        try session.setCategory(
-            .playAndRecord,
-            mode: .spokenAudio,
-            options: [
-                .defaultToSpeaker,
-                .allowBluetoothHFP
-            ]
-        )
-        try session.setActive(true)
+    // Timer that calls updateMeter every 0.1 seconds
+    private func startMetering() {
+        meterTimer = Timer.scheduledTimer(
+            withTimeInterval: meterInterval,
+            repeats: true
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.updateMeters()
+            }
+        }
     }
+
+    // Stops timer
+    private func stopMetering() {
+        meterTimer?.invalidate()
+        meterTimer = nil
+    }
+
+    // Gets statistics from recorder
+    private func updateMeters() {
+        guard let recorder = audioRecorder else { return }
+        recorder.updateMeters()
+        
+        // Raw data
+        let power = recorder.averagePower(forChannel: 0)
+        let now = Date()
+
+        // Cleaned up Data
+        currentAudioLevel = normalizedPowerLevel(from: power) // Loudness
+        elapsedTime = now.timeIntervalSince(recordingStartTime ?? now)
+
+        handleSpeechState(for: power, at: now)
+        
+        trackVolumeSample(power)
+    }
+
+    // Normalizes dB level to range from 0(silent) to 1(max)
+    private func normalizedPowerLevel(from decibels: Float) -> Float {
+        let minDb: Float = -60.0
+        let maxDb: Float = 0.0
+        
+        let clamped = max(minDb, min(decibels, maxDb))
+        return (clamped - minDb) / (maxDb - minDb)
+    }
+    
+    // Handles changes in speech state
+    private func handleSpeechState(for power: Float, at time: Date) {
+        let isSpeaking = power > speechThreshold
+
+        switch (speechState, isSpeaking) {
+        // silence → speaking, store pause
+        case (.silent, true):
+            if let silenceStartTime {
+                pauses.append(time.timeIntervalSince(silenceStartTime))
+            }
+            speechState = .speaking
+            silenceStartTime = nil
+        // speaking → speaking, update speaking time
+        case (.speaking, true):
+            speakingTime += meterInterval
+
+        // speaking → silence, measure pause time
+        case (.speaking, false):
+            speechState = .silent
+            silenceStartTime = time
+
+        // silence → silence
+        case (.silent, false):
+            break
+        }
+    }
+    
+    // Tracks volume samples
+    private func trackVolumeSample(_ power: Float) {
+        meterUpdateCount += 1
+        if meterUpdateCount % 5 == 0 {
+            volumeSamples.append(power)
+        }
+    }
+    
+    // Catches any final pauses
+    private func finalizeLastPauseIfNeeded() {
+        guard
+            speechState == .silent,
+            let silenceStartTime
+        else { return }
+
+        let pauseDuration = Date().timeIntervalSince(silenceStartTime)
+        pauses.append(pauseDuration)
+    }
+
+    // Metrics Reset & Persistence
+
+    private func resetMetrics() {
+        recordingStartTime = Date()
+        silenceStartTime = recordingStartTime
+        elapsedTime = 0
+        speakingTime = 0
+        pauses.removeAll()
+        speechState = .silent
+        volumeSamples = []
+        meterUpdateCount = 0
+    }
+
     
     // Playing Audio
 
-    // Update your play method
+    // Plays the audio
     func play(_ recording: Recording) {
           // Stop any current playback first
           stopPlayback()
-          
+          // Checks to see if files exists
           guard FileManager.default.fileExists(atPath: recording.url.path) else {
               print("Recording file not found at:", recording.url.path)
               return
           }
-          
           do {
               let session = AVAudioSession.sharedInstance()
               try session.setCategory(.playback, mode: .default)
@@ -183,6 +314,7 @@ final class AudioManager: NSObject, ObservableObject {
           }
       }
 
+    // Stops playback and resets state
     func stopPlayback() {
         audioPlayer?.stop()
         audioPlayer = nil
@@ -190,6 +322,7 @@ final class AudioManager: NSObject, ObservableObject {
         isPlaying = false
     }
 
+    // Used for the play/pause button
     func togglePlayback(for recording: Recording) {
         if currentlyPlayingID == recording.id, isPlaying {
             stopPlayback()
@@ -198,144 +331,16 @@ final class AudioManager: NSObject, ObservableObject {
         }
     }
     
+    //
     func playbackDidFinish() {
             currentlyPlayingID = nil
             isPlaying = false
         }
         
     
-    // MARK: - Metering & Speech Analysis
+    //  Helpers
 
-    private func startMetering() {
-        meterTimer = Timer.scheduledTimer(
-            withTimeInterval: meterInterval,
-            repeats: true
-        ) { [weak self] _ in
-            Task { @MainActor in
-                self?.updateMeters()
-            }
-        }
-    }
-
-    private func stopMetering() {
-        meterTimer?.invalidate()
-        meterTimer = nil
-    }
-
-    private func updateMeters() {
-        guard let recorder = audioRecorder else { return }
-
-        recorder.updateMeters()
-
-        let power = recorder.averagePower(forChannel: 0)
-        let now = Date()
-
-        // Normalize power to 0...1 range
-        currentAudioLevel = normalizedPowerLevel(from: power)
-
-        // Total time since recording started
-        elapsedTime = now.timeIntervalSince(recordingStartTime ?? now)
-
-        handleSpeechState(for: power, at: now)
-    }
-
-    private func normalizedPowerLevel(from decibels: Float) -> Float {
-        // Decibels typically range from -160 (silent) to 0 (max)
-        // We'll map -60...0 to 0...1 for better visual range
-        let minDb: Float = -60.0
-        let maxDb: Float = 0.0
-        
-        let clamped = max(minDb, min(decibels, maxDb))
-        return (clamped - minDb) / (maxDb - minDb)
-    }
-    
-    private func handleSpeechState(for power: Float, at time: Date) {
-        let isSpeaking = power > speechThreshold
-
-        switch (speechState, isSpeaking) {
-
-        // silence → speaking
-        case (.silent, true):
-            if let silenceStartTime {
-                pauses.append(time.timeIntervalSince(silenceStartTime))
-            }
-            speechState = .speaking
-            silenceStartTime = nil
-
-        // speaking → speaking
-        case (.speaking, true):
-            speakingTime += meterInterval
-
-        // speaking → silence
-        case (.speaking, false):
-            speechState = .silent
-            silenceStartTime = time
-
-        // silence → silence
-        case (.silent, false):
-            break
-        }
-    }
-
-    // MARK: - Metrics Reset & Persistence
-
-    private func resetMetrics() {
-        recordingStartTime = Date()
-        silenceStartTime = recordingStartTime
-
-        elapsedTime = 0
-        speakingTime = 0
-        pauses.removeAll()
-
-        speechState = .silent
-    }
-
-    private func saveRecording() {
-        guard let url = currentRecordingURL else { return }
-
-        let recording = Recording(
-            id: UUID(),
-            url: url,
-            date: Date(),
-            duration: elapsedTime,
-            speakingTime: speakingTime,
-            pauses: pauses,
-            notes: NotesStore.shared.currentNotes
-        )
-
-        recordings.insert(recording, at: 0)
-        persistRecordings()
-
-        NotesStore.shared.currentNotes = nil
-    }
-
-    func deleteRecording(_ recording: Recording) {
-        // Remove audio file
-        try? FileManager.default.removeItem(at: recording.url)
-
-        // Remove metadata
-        recordings.removeAll { $0.id == recording.id }
-
-        // Persist change
-        persistRecordings()
-    }
-    
-    private func persistRecordings() {
-        do {
-            let data = try JSONEncoder().encode(recordings)
-            try data.write(to: recordingsFileURL)
-        } catch {
-            print("Failed to save recordings:", error)
-        }
-    }
-    // MARK: - Helpers
-
-    private func makeRecordingURL() -> URL {
-        FileManager.default
-            .urls(for: .documentDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent(UUID().uuidString + ".m4a")
-    }
-
+    // Defines the audio recording format
     private var recorderSettings: [String: Any] {
         [
             AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
@@ -345,6 +350,7 @@ final class AudioManager: NSObject, ObservableObject {
         ]
     }
 
+    // Requests Mic permission asynchrously
     private func requestMicrophonePermission(
         completion: @escaping (Bool) -> Void
     ) {
@@ -356,44 +362,56 @@ final class AudioManager: NSObject, ObservableObject {
             }
     }
     
-    private func finalizeLastPauseIfNeeded() {
-        guard
-            speechState == .silent,
-            let silenceStartTime
-        else { return }
-
-        let pauseDuration = Date().timeIntervalSince(silenceStartTime)
-        pauses.append(pauseDuration)
+    // Configures hardware settings for audio
+    private func configureAudioSession() throws {
+        let session = AVAudioSession.sharedInstance()
+        try session.setCategory(
+            .playAndRecord,
+            mode: .spokenAudio,
+            options: [
+                .defaultToSpeaker,
+                .allowBluetoothHFP
+            ]
+        )
+        try session.setActive(true)
     }
     
-    // MARK: - Derived Presentation Metrics
+    // Unique file in the documents path
+    private func makeRecordingURL() -> URL {
+        FileManager.default
+            .urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent(UUID().uuidString + ".m4a")
+    }
+    
+    // Derived Presentation Metrics
 
-    /// 1️⃣ Speaking ratio (confidence proxy)
+    // Time spent speaking
     var speakingRatio: Double {
         guard elapsedTime > 0 else { return 0 }
         return speakingTime / elapsedTime
     }
 
-    /// 2️⃣ Average pause duration
     var averagePauseDuration: TimeInterval {
         guard !pauses.isEmpty else { return 0 }
         return pauses.reduce(0, +) / Double(pauses.count)
     }
 
-    /// 3️⃣ Long pause count (> 2 seconds)
+    // Tracks moments of hesitations
     var longPauseCount: Int {
         pauses.filter { $0 > 2.0 }.count
     }
 
-    /// 4️⃣ Average speaking segment length
-    ///
-    /// Estimated by dividing total speaking time by
-    /// number of speaking segments (pauses).
+    
     var averageSpeakingSegmentLength: TimeInterval {
         speakingTime / Double(speakingSegmentCount)
     }
+    
+    var speakingSegmentCount: Int {
+        max(pauses.count - 1, 1)
+    }
 }
 
+// Alert for when the audio is done playing. 
 private class AudioPlayerDelegateHandler: NSObject, AVAudioPlayerDelegate {
     weak var audioManager: AudioManager?
     

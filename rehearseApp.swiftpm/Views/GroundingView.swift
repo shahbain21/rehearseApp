@@ -44,7 +44,7 @@ struct GroundingView: View {
                     
                     Spacer()
                     
-                    // Invisible placeholder for symmetry
+                    // Placeholder for symmetry
                     Color.clear
                         .frame(width: 18, height: 18)
                 }

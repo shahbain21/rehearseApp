@@ -19,7 +19,7 @@ struct NotesView: View {
     var body: some View {
         ZStack {
             // Dark background
-            Color(red: 0.08, green: 0.08, blue: 0.14)
+            Color(hex: "141424")
                 .ignoresSafeArea()
                 .onTapGesture {
                     isEditorFocused = false
@@ -215,7 +215,7 @@ struct NotesView: View {
         }
     }
 
-    // MARK: - Copy helpers
+    // Copy helpers
 
     private var modeTitle: String {
         switch mode {
@@ -339,7 +339,7 @@ struct NotesView: View {
     }
 }
 
-// MARK: - Quick Action Button
+// Quick Action Button
 
 struct QuickActionButton: View {
     let icon: String

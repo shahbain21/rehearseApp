@@ -11,7 +11,7 @@ struct FeedbackGenerator {
 
     static func generate(from recording: Recording) -> PresentationFeedback {
         
-        // MARK: - Basic Metrics
+        // Basic Metrics
         
         let duration = recording.duration
         let speakingTime = recording.speakingTime
@@ -21,26 +21,42 @@ struct FeedbackGenerator {
         let longPauseCount = recording.longPauseCount
         let pauseCount = recording.pauses.count
         
-        // MARK: - Pause Distribution Analysis
+        // Pause Distribution Analysis
         
         let pauseDistribution = analyzePauseDistribution(recording.pauses)
         
-        // MARK: - Calculate Scores
+        // Calculate Scores
         
         let speakingRatioScore = calculateSpeakingRatioScore(speakingRatio)
         let pauseScore = calculatePauseScore(avgPause: avgPause, longPauses: longPauseCount, totalPauses: pauseCount)
         let segmentScore = calculateSegmentScore(avgSegment)
         let consistencyScore = calculateConsistencyScore(pauses: recording.pauses)
         
-        // Overall weighted score
-        let overallScore = Int(
-            speakingRatioScore * 0.3 +
-            pauseScore * 0.3 +
-            segmentScore * 0.25 +
-            consistencyScore * 0.15
-        )
+        // Volume Analysis
+        let volumeAnalysis = VolumeAnalysis.analyze(recording.volumeSamples ?? [])
         
-        // MARK: - Determine Tone
+        // Overall weighted score
+        let overallScore: Int
+        if volumeAnalysis.averageVolume != 0 {
+            // Volume data available — include it
+            overallScore = Int(
+                speakingRatioScore * 0.25 +
+                pauseScore * 0.25 +
+                segmentScore * 0.20 +
+                consistencyScore * 0.15 +
+                volumeAnalysis.variationScore * 0.15
+            )
+        } else {
+            // No volume data — use original weights
+            overallScore = Int(
+                speakingRatioScore * 0.3 +
+                pauseScore * 0.3 +
+                segmentScore * 0.25 +
+                consistencyScore * 0.15
+            )
+        }
+        
+        // Determine Tone
         
         let tone: FeedbackTone = {
             switch overallScore {
@@ -51,7 +67,7 @@ struct FeedbackGenerator {
             }
         }()
         
-        // MARK: - Summary
+        // Summary
         
         let summary = generateSummary(
             score: overallScore,
@@ -60,7 +76,7 @@ struct FeedbackGenerator {
             avgSegment: avgSegment
         )
         
-        // MARK: - Detailed Metrics
+        // Detailed Metrics
         
         let metrics = generateDetailedMetrics(
             speakingRatio: speakingRatio,
@@ -69,10 +85,11 @@ struct FeedbackGenerator {
             longPauseCount: longPauseCount,
             duration: duration,
             speakingTime: speakingTime,
-            pauseCount: pauseCount
+            pauseCount: pauseCount,
+            volumeAnalysis: volumeAnalysis
         )
         
-        // MARK: - Insights
+        // Insights
         
         let insights = generateInsights(
             speakingRatio: speakingRatio,
@@ -80,10 +97,11 @@ struct FeedbackGenerator {
             avgSegment: avgSegment,
             longPauseCount: longPauseCount,
             pauseDistribution: pauseDistribution,
-            duration: duration
+            duration: duration,
+            volumeAnalysis: volumeAnalysis
         )
         
-        // MARK: - Pace Category
+        // Pace Category
         
         let (paceCategory, paceDescription) = analyzePace(
             speakingRatio: speakingRatio,
@@ -91,13 +109,14 @@ struct FeedbackGenerator {
             avgPause: avgPause
         )
         
-        // MARK: - Practice Exercises
+        // Practice Exercises
         
         let exercises = generateExercises(
             speakingRatio: speakingRatio,
             avgPause: avgPause,
             avgSegment: avgSegment,
-            longPauseCount: longPauseCount
+            longPauseCount: longPauseCount,
+            volumeAnalysis: volumeAnalysis 
         )
         
         return PresentationFeedback(
@@ -114,7 +133,7 @@ struct FeedbackGenerator {
         )
     }
     
-    // MARK: - Pause Distribution Analysis
+    // Pause Distribution Analysis
     
     private static func analyzePauseDistribution(_ pauses: [TimeInterval]) -> PauseDistribution {
         var short = 0
@@ -143,7 +162,7 @@ struct FeedbackGenerator {
         )
     }
     
-    // MARK: - Score Calculations
+    // Score Calculations
     
     private static func calculateSpeakingRatioScore(_ ratio: Double) -> Double {
         // Ideal range: 0.6 - 0.8
@@ -218,7 +237,7 @@ struct FeedbackGenerator {
         }
     }
     
-    // MARK: - Summary Generation
+    // Summary Generation
     
     private static func generateSummary(
         score: Int,
@@ -238,7 +257,7 @@ struct FeedbackGenerator {
         }
     }
     
-    // MARK: - Detailed Metrics Generation
+    // Detailed Metrics Generation
     
     private static func generateDetailedMetrics(
         speakingRatio: Double,
@@ -247,7 +266,8 @@ struct FeedbackGenerator {
         longPauseCount: Int,
         duration: Double,
         speakingTime: Double,
-        pauseCount: Int
+        pauseCount: Int,
+        volumeAnalysis: VolumeAnalysis
     ) -> [DetailedMetric] {
         
         var metrics: [DetailedMetric] = []
@@ -348,6 +368,31 @@ struct FeedbackGenerator {
             icon: "water.waves"
         ))
         
+        if volumeAnalysis.averageVolume != 0 {
+            let energyRating: MetricRating = {
+                if volumeAnalysis.isMonotone { return .needsImprovement }
+                switch volumeAnalysis.variationScore {
+                case 70...100: return .excellent
+                case 50..<70: return .good
+                case 30..<50: return .fair
+                default: return .needsImprovement
+                }
+            }()
+            
+            metrics.append(DetailedMetric(
+                name: "Vocal Energy",
+                value: volumeAnalysis.isMonotone ? "Flat" :
+                    volumeAnalysis.variationScore > 70 ? "Dynamic" : "Moderate",
+                rating: energyRating,
+                description: volumeAnalysis.isMonotone ?
+                "Your volume stays very consistent" :
+                    "Good variation in your delivery",
+                tip: volumeAnalysis.isMonotone ?
+                "Try emphasizing key words by raising your volume slightly" : nil,
+                icon: "speaker.wave.3"
+            ))
+        }
+        
         return metrics
     }
     
@@ -359,7 +404,8 @@ struct FeedbackGenerator {
         avgSegment: Double,
         longPauseCount: Int,
         pauseDistribution: PauseDistribution,
-        duration: Double
+        duration: Double,
+        volumeAnalysis: VolumeAnalysis
     ) -> [FeedbackInsight] {
         
         var insights: [FeedbackInsight] = []
@@ -446,6 +492,14 @@ struct FeedbackGenerator {
             ))
         }
         
+        if volumeAnalysis.averageVolume != 0 && volumeAnalysis.isMonotone {
+                insights.append(FeedbackInsight(
+                    type: .improvement,
+                    title: "Add Vocal Variety",
+                    description: "Your volume stays very flat. Try raising your voice for key points and lowering it for dramatic moments."
+                ))
+            }
+        
         // TIPS
         if duration < 60 {
             insights.append(FeedbackInsight(
@@ -482,6 +536,14 @@ struct FeedbackGenerator {
                 description: "Try practicing with more complex material or adding time pressure to continue improving."
             ))
         }
+        
+        if volumeAnalysis.averageVolume != 0 && volumeAnalysis.variationScore > 70 {
+               insights.append(FeedbackInsight(
+                   type: .strength,
+                   title: "Dynamic Delivery",
+                   description: "Great vocal variety! You naturally vary your volume, which keeps listeners engaged."
+               ))
+           }
         
         return insights
     }
@@ -523,7 +585,8 @@ struct FeedbackGenerator {
         speakingRatio: Double,
         avgPause: Double,
         avgSegment: Double,
-        longPauseCount: Int
+        longPauseCount: Int,
+        volumeAnalysis: VolumeAnalysis
     ) -> [PracticeExercise] {
         
         var exercises: [PracticeExercise] = []
@@ -572,6 +635,15 @@ struct FeedbackGenerator {
                 icon: "pause.fill"
             ))
         }
+        
+        if volumeAnalysis.averageVolume != 0 && volumeAnalysis.isMonotone {
+                exercises.append(PracticeExercise(
+                    title: "Emphasis Practice",
+                    description: "Pick a sentence and say it 3 ways: emphasize the first word, the middle, then the last. Notice how meaning shifts.",
+                    duration: "3 min",
+                    icon: "waveform.path.ecg"
+                ))
+            }
         
         // Add a closing exercise
         exercises.append(PracticeExercise(

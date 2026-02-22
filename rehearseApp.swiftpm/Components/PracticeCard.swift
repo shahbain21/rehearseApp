@@ -75,7 +75,7 @@ struct PracticeCard: View {
 
 #Preview("Practice Card") {
     ZStack {
-        Color(red: 0.08, green: 0.08, blue: 0.14)
+        Color(hex: "141424")
             .ignoresSafeArea()
         
         VStack(spacing: 12) {
