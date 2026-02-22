@@ -12,85 +12,109 @@ struct PracticeCard: View {
     let title: String
     let subtitle: String
     let isSelected: Bool
+    let accentColor: Color
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 16) {
-                // Icon
-                ZStack {
-                    Circle()
-                        .fill(isSelected ? Color.blue.opacity(0.2) : Color.white.opacity(0.1))
-                        .frame(width: 44, height: 44)
-                    
-                    Image(systemName: icon)
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(isSelected ? .blue : .white.opacity(0.7))
-                }
-
-                // Text
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(title)
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.white)
-
-                    Text(subtitle)
-                        .font(.system(size: 13))
-                        .foregroundColor(.white.opacity(0.5))
-                }
-
+            HStack(spacing: AppTheme.Spacing.lg) {
+                iconCircle
+                textContent
                 Spacer()
-
-                // Selection indicator
-                ZStack {
-                    Circle()
-                        .stroke(isSelected ? Color.blue : Color.white.opacity(0.3), lineWidth: 2)
-                        .frame(width: 24, height: 24)
-                    
-                    if isSelected {
-                        Circle()
-                            .fill(Color.blue)
-                            .frame(width: 14, height: 14)
-                    }
-                }
+                selectionIndicator
             }
-            .padding(16)
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(isSelected
-                        ? Color.blue.opacity(0.15)
-                        : Color.white.opacity(0.05))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .stroke(isSelected
-                                ? Color.blue.opacity(0.5)
-                                : Color.white.opacity(0.1),
-                            lineWidth: 1)
-                    )
-            )
+            .padding(AppTheme.Spacing.lg)
+            .background(cardBackground)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressableButtonStyle())
+        .accessibilityLabel("\(title): \(subtitle)")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+    
+    // Individual struct for icon circle
+    private var iconCircle: some View {
+        ZStack {
+            Circle()
+                .fill(isSelected ? accentColor.opacity(0.2): accentColor.opacity(0.08))
+                .frame(width: AppTheme.IconSize.cardIcon, height: AppTheme.IconSize.cardIcon)
+            
+            Image(systemName: icon)
+                .font(AppTheme.Fonts.iconFont)
+                .foregroundColor(isSelected ? AppTheme.accent : AppTheme.secondaryText)
+        }
+    }
+    
+    // Individual struct for the text
+    private var textContent: some View {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.xs) {
+            Text(title)
+                .font(AppTheme.Fonts.cardTitle)
+                .foregroundColor(AppTheme.primaryText)
+
+            Text(subtitle)
+                .font(AppTheme.Fonts.cardSubtitle)
+                .foregroundColor(AppTheme.tertiaryText)
+        }
+    }
+    
+    // Individual struct for the selection indicator circles
+    private var selectionIndicator: some View {
+        ZStack {
+            Circle()
+                .stroke(isSelected ? accentColor : AppTheme.mutedText, lineWidth: 2)
+                .frame(width: AppTheme.IconSize.selectionOuter,
+                       height: AppTheme.IconSize.selectionOuter)
+            
+            if isSelected {
+                Circle()
+                    .fill(accentColor)
+                    .frame(width: AppTheme.IconSize.selectionInner,
+                           height: AppTheme.IconSize.selectionInner)
+                    .transition(.scale.combined(with: .opacity))
+            }
+        }
+    }
+    
+    // Individual struct for the background
+    private var cardBackground: some View {
+        RoundedRectangle(cornerRadius: AppTheme.Radius.card)
+            .fill(isSelected ? accentColor.opacity(0.12) : AppTheme.cardBackground)
+            .overlay(
+                RoundedRectangle(cornerRadius: AppTheme.Radius.card)
+                    .stroke(isSelected ? accentColor.opacity(0.4) : AppTheme.border,
+                            lineWidth: 1)
+            )
     }
 }
 
 #Preview("Practice Card") {
     ZStack {
-        Color(hex: "141424")
-            .ignoresSafeArea()
+        AppTheme.background.ignoresSafeArea()
         
-        VStack(spacing: 12) {
+        VStack(spacing: AppTheme.Spacing.md) {
+            // CHANGED: Preview now shows different mode colors
             PracticeCard(
                 icon: "person.fill.questionmark",
                 title: "Interview",
                 subtitle: "Answer clearly and confidently",
-                isSelected: true
+                isSelected: true,
+                accentColor: .blue
             ) {}
             
             PracticeCard(
                 icon: "chart.bar.doc.horizontal",
                 title: "Presentation",
                 subtitle: "Practice pacing and emphasis",
-                isSelected: false
+                isSelected: false,
+                accentColor: .purple
+            ) {}
+            
+            PracticeCard(
+                icon: "book.fill",
+                title: "Storytelling",
+                subtitle: "Work on flow and engagement",
+                isSelected: false,
+                accentColor: .orange
             ) {}
         }
         .padding()

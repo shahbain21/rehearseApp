@@ -4,26 +4,18 @@
 //
 //  Created by Mohamed Shahbain on 1/1/26.
 //
+
 import Foundation
 
-enum PracticeMode: Codable, Hashable {
+enum PracticeMode: Codable, Hashable, CaseIterable {
     case interview
     case presentation
     case storytelling
     case free
     
-    // Whether this mode should show the notes screen
+    // Only free doesn't require notes
     var requiresNotes: Bool {
-        switch self {
-        case .interview:
-            return true
-        case .presentation:
-            return true
-        case .storytelling:
-            return true
-        case .free:
-            return false     
-        }
+        self != .free
     }
     
     // Display name for the mode

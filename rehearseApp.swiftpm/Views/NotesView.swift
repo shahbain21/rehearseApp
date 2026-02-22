@@ -15,175 +15,32 @@ struct NotesView: View {
     @State private var notes: String = ""
     @State private var showingFileImporter = false
     @FocusState private var isEditorFocused: Bool
+    
+    // Controls confirmation dialogs
+    @State private var showTemplateConfirmation = false
+    @State private var showClearConfirmation = false
+    @State private var showBackConfirmation = false
 
     var body: some View {
         ZStack {
-            // Dark background
-            Color(hex: "141424")
+            AppTheme.background
                 .ignoresSafeArea()
                 .onTapGesture {
                     isEditorFocused = false
                 }
 
-            VStack(spacing: 20) {
+            VStack(spacing: AppTheme.Spacing.xl) {
+                topBar
                 
-                // Top bar
-                HStack {
-                    Button {
-                        currentScreen = .home
-                    } label: {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 18, weight: .medium))
-                            .foregroundColor(.white.opacity(0.7))
-                    }
-                    
-                    Spacer()
-                    
-                    Text(modeTitle)
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.white.opacity(0.7))
-                    
-                    Spacer()
-                    
-                    Color.clear
-                        .frame(width: 18, height: 18)
-                }
-                .padding(.horizontal)
-                .padding(.top, 8)
-
-                // Header
-                VStack(spacing: 12) {
-                    Text(titleText)
-                        .font(.system(size: 28, weight: .semibold))
-                        .foregroundColor(.white)
-
-                    Text(subtitleText)
-                        .font(.system(size: 15))
-                        .foregroundColor(.white.opacity(0.5))
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
-                }
-
-                // Quick actions
-                HStack(spacing: 12) {
-                    // Import button
-                    QuickActionButton(
-                        icon: "doc.text",
-                        title: "Import"
-                    ) {
-                        showingFileImporter = true
-                    }
-                    
-                    // Template button
-                    QuickActionButton(
-                        icon: "list.bullet.rectangle",
-                        title: "Template"
-                    ) {
-                        withAnimation {
-                            notes = templateText
-                        }
-                    }
-                    
-                    // Clear button
-                    QuickActionButton(
-                        icon: "trash",
-                        title: "Clear"
-                    ) {
-                        withAnimation {
-                            notes = ""
-                        }
-                    }
-                    .opacity(notes.isEmpty ? 0.5 : 1)
-                    .disabled(notes.isEmpty)
-                }
-                .padding(.horizontal)
-
-                // Notes editor
-                VStack(alignment: .leading, spacing: 8) {
-                    ZStack(alignment: .topLeading) {
-                        if notes.isEmpty {
-                            Text(placeholderText)
-                                .font(.system(size: 15))
-                                .foregroundColor(.white.opacity(0.3))
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 14)
-                        }
-                        
-                        TextEditor(text: $notes)
-                            .font(.system(size: 15))
-                            .foregroundColor(.white)
-                            .scrollContentBackground(.hidden)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .focused($isEditorFocused)
-                    }
-                    .frame(minHeight: 180)
-                    .background(Color.white.opacity(0.05))
-                    .cornerRadius(16)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .stroke(
-                                isEditorFocused
-                                    ? Color.blue.opacity(0.5)
-                                    : Color.white.opacity(0.1),
-                                lineWidth: 1
-                            )
-                    )
-                    
-                    // Character count
-                    HStack {
-                        if !notes.isEmpty {
-                            let lineCount = notes.components(separatedBy: "\n").filter { !$0.isEmpty }.count
-                            Text("\(lineCount) lines")
-                                .font(.system(size: 12))
-                                .foregroundColor(.white.opacity(0.3))
-                        }
-                        
-                        Spacer()
-                        
-                        Text("\(notes.count) characters")
-                            .font(.system(size: 12))
-                            .foregroundColor(.white.opacity(0.3))
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: AppTheme.Spacing.xl) {
+                        headerSection
+                        quickActions
+                        notesEditor
                     }
                 }
-                .padding(.horizontal)
-
-                Spacer()
-
-                // Action buttons
-                VStack(spacing: 12) {
-                    Button {
-                        isEditorFocused = false
-                        NotesStore.shared.currentNotes =
-                            notes.trimmingCharacters(in: .whitespacesAndNewlines)
-                        currentScreen = .grounding(mode)
-                    } label: {
-                        HStack {
-                            Text("Start Practice")
-                            Image(systemName: "arrow.right")
-                        }
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(
-                            RoundedRectangle(cornerRadius: 14)
-                                .fill(Color.blue)
-                        )
-                    }
-
-                    Button {
-                        NotesStore.shared.currentNotes = nil
-                        currentScreen = .grounding(mode)
-                    } label: {
-                        Text("Skip for now")
-                            .font(.system(size: 15, weight: .medium))
-                            .foregroundColor(.white.opacity(0.5))
-                    }
-                    .padding(.top, 4)
-                }
-                .padding(.horizontal)
-                .padding(.bottom, 40)
+                
+                actionButtons
             }
         }
         .fileImporter(
@@ -213,9 +70,292 @@ struct NotesView: View {
                 print("Import failed:", error)
             }
         }
+        // Confirmation before template overwrites existing notes
+        .confirmationDialog(
+            "Replace Notes",
+            isPresented: $showTemplateConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Replace with Template", role: .destructive) {
+                withAnimation {
+                    notes = templateText
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Your current notes will be replaced with the template.")
+        }
+        // Confirmation before clearing notes
+        .confirmationDialog(
+            "Clear Notes",
+            isPresented: $showClearConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Clear All", role: .destructive) {
+                withAnimation {
+                    notes = ""
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This will delete everything you've written.")
+        }
+        // Warning when going back with unsaved notes
+        .confirmationDialog(
+            "Discard Notes?",
+            isPresented: $showBackConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Discard", role: .destructive) {
+                currentScreen = .home
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("You have unsaved notes. Going back will discard them.")
+        }
+    }
+    
+    // Top Bar
+    private var topBar: some View {
+        HStack {
+            Button {
+                // If user has typed notes, show a warning before going back
+                if notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    currentScreen = .home
+                } else {
+                    showBackConfirmation = true
+                }
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(AppTheme.Fonts.iconFont)
+                    .foregroundColor(AppTheme.secondaryText)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .accessibilityLabel("Go back")
+            Spacer()
+            Text(modeTitle)
+                .font(AppTheme.Fonts.secondaryButton)
+                .foregroundColor(AppTheme.secondaryText)
+            Spacer()
+            Color.clear
+                .frame(width: 18, height: 18)
+        }
+        .padding(.horizontal, AppTheme.Spacing.lg)
+        .padding(.top, AppTheme.Spacing.sm)
+    }
+    
+    // Header
+    private var headerSection: some View {
+        VStack(spacing: AppTheme.Spacing.md) {
+            Text(titleText)
+                .font(AppTheme.Fonts.screenTitle)
+                .foregroundColor(AppTheme.primaryText)
+
+            Text(subtitleText)
+                .font(AppTheme.Fonts.screenSubtitle)
+                .foregroundColor(AppTheme.tertiaryText)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, AppTheme.Spacing.lg)
+        }
+    }
+    
+    // Quick Actions
+    private var quickActions: some View {
+        HStack(spacing: AppTheme.Spacing.md) {
+            // Import button
+            QuickActionButton(
+                icon: "doc.text",
+                title: "Import"
+            ) {
+                showingFileImporter = true
+            }
+            
+            // Template button — now confirms before overwriting
+            QuickActionButton(
+                icon: "list.bullet.rectangle",
+                title: "Template"
+            ) {
+                if notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    withAnimation {
+                        notes = templateText
+                    }
+                } else {
+                    showTemplateConfirmation = true
+                }
+            }
+            
+            // Clear button — now confirms before clearing
+            QuickActionButton(
+                icon: "trash",
+                title: "Clear"
+            ) {
+                showClearConfirmation = true
+            }
+            .opacity(notes.isEmpty ? 0.5 : 1)
+            .disabled(notes.isEmpty)
+        }
+        .padding(.horizontal, AppTheme.Spacing.lg)
+    }
+    
+    // Notes Editor
+    private var notesEditor: some View {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.sm) {
+            ZStack(alignment: .topLeading) {
+                if notes.isEmpty {
+                    Text(placeholderText)
+                        .font(AppTheme.Fonts.screenSubtitle)
+                        .foregroundColor(AppTheme.mutedText)
+                        .padding(.horizontal, AppTheme.Spacing.lg)
+                        .padding(.vertical, 14)
+                }
+                
+                TextEditor(text: $notes)
+                    .font(AppTheme.Fonts.screenSubtitle)
+                    .foregroundColor(AppTheme.primaryText)
+                    .scrollContentBackground(.hidden)
+                    .padding(.horizontal, AppTheme.Spacing.md)
+                    .padding(.vertical, AppTheme.Spacing.sm)
+                    .focused($isEditorFocused)
+            }
+            .frame(minHeight: 180, maxHeight: .infinity)
+            .background(AppTheme.cardBackground)
+            .cornerRadius(AppTheme.Radius.card)
+            .overlay(
+                RoundedRectangle(cornerRadius: AppTheme.Radius.card)
+                    .stroke(
+                        isEditorFocused
+                            ? AppTheme.borderSelected
+                            : AppTheme.border,
+                        lineWidth: 1
+                    )
+            )
+            
+            statsRow
+        }
+        .padding(.horizontal, AppTheme.Spacing.lg)
+    }
+    
+    // Shows the word/char count
+    private var statsRow: some View {
+        HStack {
+            if !notes.isEmpty {
+//                let lineCount = notes.components(separatedBy: "\n")
+//                    .filter { !$0.isEmpty }.count
+                
+//                // Line Count
+//                Text("\(lineCount) lines")
+//                    .font(AppTheme.Fonts.smallLabel)
+//                    .foregroundColor(AppTheme.mutedText)
+                
+                // Dot separator
+                Text("·")
+                    .font(AppTheme.Fonts.smallLabel)
+                    .foregroundColor(AppTheme.mutedText)
+                
+                // Word count
+                Text("\(wordCount) words")
+                    .font(AppTheme.Fonts.smallLabel)
+                    .foregroundColor(AppTheme.mutedText)
+                
+//                // Estimated speaking time
+//                if wordCount >= 10 {
+//                    Text("·")
+//                        .font(AppTheme.Fonts.smallLabel)
+//                        .foregroundColor(AppTheme.mutedText)
+//                    
+//                    Text("~\(estimatedSpeakingTime)")
+//                        .font(AppTheme.Fonts.smallLabel)
+//                        .foregroundColor(AppTheme.accent.opacity(0.6))
+//                }
+            }
+            
+            Spacer()
+            
+            Text("\(notes.count) characters")
+                .font(AppTheme.Fonts.smallLabel)
+                .foregroundColor(AppTheme.mutedText)
+        }
+    }
+    
+    // Action Buttons
+    private var actionButtons: some View {
+        VStack(spacing: AppTheme.Spacing.md) {
+            Button {
+                isEditorFocused = false
+                NotesStore.shared.currentNotes =
+                    notes.trimmingCharacters(in: .whitespacesAndNewlines)
+                currentScreen = .grounding(mode)
+            } label: {
+                HStack {
+                    Text("Start Practice")
+                    Image(systemName: "arrow.right")
+                }
+                .font(AppTheme.Fonts.buttonLabel)
+                .foregroundColor(AppTheme.primaryText)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, AppTheme.Spacing.lg)
+                .background(
+                    RoundedRectangle(cornerRadius: AppTheme.Radius.button)
+                        .fill(AppTheme.accent)
+                )
+            }
+            .accessibilityHint("Starts your practice session with the notes you've written")
+
+            Button {
+                NotesStore.shared.currentNotes = nil
+                currentScreen = .grounding(mode)
+            } label: {
+                Text("Skip for now")
+                    .font(AppTheme.Fonts.secondaryButton)
+                    .foregroundColor(AppTheme.secondaryText)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, AppTheme.Spacing.md)
+                    .background(
+                        RoundedRectangle(cornerRadius: AppTheme.Radius.button)
+                            .stroke(AppTheme.border, lineWidth: 1)
+                    )
+            }
+            .accessibilityHint("Starts your session without any notes")
+        }
+        .padding(.horizontal, AppTheme.Spacing.lg)
+        .padding(.bottom, AppTheme.Spacing.xxl)
+        .background(
+            LinearGradient(
+                colors: [AppTheme.background.opacity(0), AppTheme.background],
+                startPoint: .top,
+                endPoint: .center
+            )
+            .frame(height: 30)
+            .offset(y: -30),
+            alignment: .top
+        )
     }
 
-    // Copy helpers
+    
+    // Word count for the stats row
+    private var wordCount: Int {
+        notes.split(separator: " ").count
+    }
+    
+//    // Estimated speaking time based on ~130 words per minute
+//    private var estimatedSpeakingTime: String {
+//        let minutes = Double(wordCount) / 130.0
+//        if minutes < 1 {
+//            let seconds = Int(minutes * 60)
+//            return "\(seconds)s speaking"
+//        } else {
+//            let mins = Int(minutes)
+//            let secs = Int((minutes - Double(mins)) * 60)
+//            if secs == 0 {
+//                return "\(mins)m speaking"
+//            } else {
+//                return "\(mins)m \(secs)s speaking"
+//            }
+//        }
+//    }
+
+    // Helpers
 
     private var modeTitle: String {
         switch mode {
@@ -350,18 +490,21 @@ struct QuickActionButton: View {
         Button(action: action) {
             VStack(spacing: 6) {
                 Image(systemName: icon)
-                    .font(.system(size: 18, weight: .medium))
+                    .font(AppTheme.Fonts.iconFont)
                 Text(title)
-                    .font(.system(size: 11, weight: .medium))
+                    .font(AppTheme.Fonts.smallLabel)
             }
-            .foregroundColor(.white.opacity(0.7))
+            .foregroundColor(AppTheme.secondaryText)
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 12)
-            .background(Color.white.opacity(0.08))
-            .cornerRadius(12)
+            .padding(.vertical, AppTheme.Spacing.md)
+            .background(AppTheme.cardBackground)
+            .cornerRadius(AppTheme.Radius.card)
         }
+        .buttonStyle(PressableButtonStyle())
     }
 }
+
+// Previews
 
 #Preview("Notes View") {
     NotesView(

@@ -7,7 +7,8 @@ struct ContentView: View {
     var body: some View {
         switch screen {
         case .home:
-            HomeView(currentScreen: $screen)
+            HomeView(currentScreen: $screen,
+                     audioManager: audioManager)
 
         case .notes(let mode):
             NotesView(currentScreen: $screen, mode: mode)
