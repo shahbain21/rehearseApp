@@ -1,45 +1,39 @@
-//
-//  ImproveSectionView.swift
-//  rehearseApp
-//
-//  Created by Mohamed Shahbain on 2/20/26.
-//
-
-
 import SwiftUI
+
+// MARK: - Improve Section
 
 struct ImproveSection: View {
     let feedback: PresentationFeedback
     let onReflect: () -> Void
-    
+
     var body: some View {
         VStack(spacing: 20) {
-            
+
             // Practice exercises
             VStack(alignment: .leading, spacing: 12) {
-                Text("Recommended Exercises")
+                Text("Recommended Exercise")
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundColor(.white.opacity(0.5))
-                
-                ForEach(feedback.practiceExercises) { exercise in
+
+                ForEach(feedback.exercises) { exercise in
                     ExerciseCard(exercise: exercise)
                 }
             }
-            
-            // Improvement insights
+
+            // Improvement insight
             let improvementInsights = feedback.insights.filter { $0.type == .improvement }
             if !improvementInsights.isEmpty {
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Focus Areas")
+                    Text("Focus Area")
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(.white.opacity(0.5))
-                    
+
                     ForEach(improvementInsights) { insight in
                         InsightRow(insight: insight)
                     }
                 }
             }
-            
+
             // Reflect button
             Button(action: onReflect) {
                 HStack {
@@ -53,7 +47,7 @@ struct ImproveSection: View {
                 .background(Color.blue)
                 .cornerRadius(14)
             }
-            
+
             // Practice again button
             Button {
                 // Could navigate back to recording
@@ -73,27 +67,27 @@ struct ImproveSection: View {
 
 struct ExerciseCard: View {
     let exercise: PracticeExercise
-    
+
     var body: some View {
         HStack(spacing: 14) {
             ZStack {
                 Circle()
                     .fill(Color.blue.opacity(0.15))
                     .frame(width: 44, height: 44)
-                
+
                 Image(systemName: exercise.icon)
                     .font(.system(size: 18, weight: .medium))
                     .foregroundColor(.blue)
             }
-            
+
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     Text(exercise.title)
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundColor(.white)
-                    
+
                     Spacer()
-                    
+
                     Text(exercise.duration)
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(.white.opacity(0.4))
@@ -102,7 +96,7 @@ struct ExerciseCard: View {
                         .background(Color.white.opacity(0.1))
                         .cornerRadius(6)
                 }
-                
+
                 Text(exercise.description)
                     .font(.system(size: 13))
                     .foregroundColor(.white.opacity(0.6))
