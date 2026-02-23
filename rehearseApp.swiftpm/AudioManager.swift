@@ -164,6 +164,26 @@ final class AudioManager: NSObject, ObservableObject {
         NotesStore.shared.currentNotes = nil
     }
 
+    // Stops recording without saving
+    func discardRecording() {
+        finalizeLastPauseIfNeeded()
+        audioRecorder?.stop()
+        audioRecorder = nil
+        stopMetering()
+        isRecording = false
+        
+        // Delete the audio file from disk since we're discarding
+        if let url = currentRecordingURL {
+            try? FileManager.default.removeItem(at: url)
+        }
+        
+        // Clear the current recording data
+        currentRecordingURL = nil
+        NotesStore.shared.currentNotes = nil
+        resetMetrics()
+
+    }
+    
     // Deletes Recording from array and disk
     func deleteRecording(_ recording: Recording) {
         try? FileManager.default.removeItem(at: recording.url)
