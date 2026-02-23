@@ -15,6 +15,8 @@ struct Recording: Codable, Identifiable {
     let pauses: [TimeInterval]
     let notes: String?
     let volumeSamples: [Float]?
+    var reflection: Reflection?
+
     
     init(
             id: UUID,

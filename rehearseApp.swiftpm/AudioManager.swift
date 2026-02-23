@@ -199,6 +199,14 @@ final class AudioManager: NSObject, ObservableObject {
         isRecording = false
     }
     
+    // Saves reflection to existing recording
+    func saveReflection(_ reflection: Reflection, for recording: Recording) {
+        if let index = recordings.firstIndex(where: { $0.id == recording.id }) {
+            recordings[index].reflection = reflection
+            persistRecordings()
+        }
+    }
+    
     // Metering & Speech Analysis
 
     // Timer that calls updateMeter every 0.1 seconds

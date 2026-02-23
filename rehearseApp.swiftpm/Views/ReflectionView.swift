@@ -7,208 +7,48 @@
 
 import SwiftUI
 
+struct Reflection: Codable {
+    let mood: String
+    let tags: [String]
+    let note: String         
+    let date: Date
+}
+
 struct ReflectionView: View {
     @Binding var currentScreen: AppScreen
     let recording: Recording?
+    @ObservedObject var audioManager: AudioManager
     
     @State private var selectedMood: ReflectionMood?
-    @State private var hardPart = ""
-    @State private var goodPart = ""
-    @State private var nextTimeFocus = ""
+    @State private var note = ""
+    @State private var selectedTags: Set<String> = []
     @State private var showingPrompts = false
-    @FocusState private var focusedField: ReflectionField?
-    
-    enum ReflectionField {
-        case hard, good, next
-    }
+    @FocusState private var isNoteFocused: Bool
 
     var body: some View {
         ZStack {
             AppTheme.background.ignoresSafeArea()
                 .onTapGesture {
-                    focusedField = nil
+                    isNoteFocused = false
                 }
 
             VStack(spacing: 0) {
-                
-                // Top bar
-                HStack {
-                    Button {
-                        currentScreen = .history
-                    } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 18, weight: .medium))
-                            .foregroundColor(.white.opacity(0.7))
-                    }
-                    
-                    Spacer()
-                    
-                    Text("Reflect")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(.white)
-                    
-                    Spacer()
-                    
-                    // Prompts help button
-                    Button {
-                        showingPrompts = true
-                    } label: {
-                        Image(systemName: "lightbulb")
-                            .font(.system(size: 18, weight: .medium))
-                            .foregroundColor(.white.opacity(0.7))
-                    }
-                }
-                .padding(.horizontal)
-                .padding(.vertical, 16)
-
-                ScrollView {
-                    VStack(spacing: 24) {
-                        
-                        // Header
-                        VStack(spacing: 12) {
-                            ZStack {
-                                Circle()
-                                    .fill(Color.purple.opacity(0.15))
-                                    .frame(width: 70, height: 70)
-                                
-                                Image(systemName: "brain.head.profile")
-                                    .font(.system(size: 28, weight: .medium))
-                                    .foregroundColor(.purple)
-                            }
-                            
-                            Text("Take a moment to reflect")
-                                .font(.system(size: 22, weight: .semibold))
-                                .foregroundColor(.white)
-
-                            Text("A few words is enough.\nThis helps you grow faster.")
-                                .font(.system(size: 15))
-                                .foregroundColor(.white.opacity(0.5))
-                                .multilineTextAlignment(.center)
-                        }
-                        .padding(.top, 8)
-
-                        // Mood selector
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("How did that feel?")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(.white.opacity(0.5))
-                            
-                            HStack(spacing: 12) {
-                                ForEach(ReflectionMood.allCases, id: \.self) { mood in
-                                    MoodButton(
-                                        mood: mood,
-                                        isSelected: selectedMood == mood
-                                    ) {
-                                        withAnimation(.easeInOut(duration: 0.2)) {
-                                            selectedMood = mood
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        .padding(16)
-                        .background(Color.white.opacity(0.05))
-                        .cornerRadius(16)
-
-                        // Reflection questions
-                        VStack(spacing: 16) {
-                            ReflectionTextField(
-                                title: "What felt hardest?",
-                                placeholder: "e.g., Staying on track, not rushing...",
-                                text: $hardPart,
-                                icon: "mountain.2",
-                                color: .orange
-                            )
-                            .focused($focusedField, equals: .hard)
-
-                            ReflectionTextField(
-                                title: "What went better than expected?",
-                                placeholder: "e.g., I stayed calm, good energy...",
-                                text: $goodPart,
-                                icon: "star",
-                                color: .green
-                            )
-                            .focused($focusedField, equals: .good)
-
-                            ReflectionTextField(
-                                title: "What will you focus on next time?",
-                                placeholder: "e.g., Slower pace, more pauses...",
-                                text: $nextTimeFocus,
-                                icon: "target",
-                                color: .blue
-                            )
-                            .focused($focusedField, equals: .next)
-                        }
-
-                        // Quick tags
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("Quick tags (tap to add)")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(.white.opacity(0.5))
-                            
-                            FlowLayout(spacing: 8) {
-                                ForEach(quickTags, id: \.self) { tag in
-                                    QuickTagButton(tag: tag) {
-                                        addTag(tag)
-                                    }
-                                }
-                            }
-                        }
-                        .padding(16)
-                        .background(Color.white.opacity(0.05))
-                        .cornerRadius(16)
-
-                        // Session summary (if recording provided)
+                topBar
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: AppTheme.Spacing.xl) {
+                        performanceHeader
+                        moodSection
+                        tagsSection
+                        noteSection
+                        // Session summary
                         if let recording = recording {
                             SessionSummaryCard(recording: recording)
                         }
                     }
-                    .padding(.horizontal)
-                    .padding(.bottom, 120)
+                    .padding(.horizontal, AppTheme.Spacing.lg)
+                    .padding(.bottom, 140)
                 }
-
-                // Bottom action button
-                VStack(spacing: 12) {
-                    Button {
-                        saveReflection()
-                        currentScreen = .history
-                    } label: {
-                        HStack {
-                            Image(systemName: "checkmark.circle.fill")
-                            Text("Finish Session")
-                        }
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(Color.blue)
-                        .cornerRadius(14)
-                    }
-                    
-                    Button {
-                        currentScreen = .history
-                    } label: {
-                        Text("Skip reflection")
-                            .font(.system(size: 15, weight: .medium))
-                            .foregroundColor(.white.opacity(0.5))
-                    }
-                }
-                .padding(.horizontal)
-                .padding(.bottom, 30)
-                .background(
-                    LinearGradient(
-                        colors: [
-                            AppTheme.background.opacity(0),
-                            AppTheme.background,
-                            AppTheme.background
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                    .frame(height: 100)
-                    .allowsHitTesting(false)
-                    .offset(y: -50)
-                )
+                actionButtons
             }
         }
         .sheet(isPresented: $showingPrompts) {
@@ -216,8 +56,292 @@ struct ReflectionView: View {
         }
     }
     
-    // MARK: - Quick Tags
+    private var topBar: some View {
+        HStack {
+            Button {
+                currentScreen = .history
+            } label: {
+                Image(systemName: "xmark")
+                    .font(AppTheme.Fonts.iconFont)
+                    .foregroundColor(AppTheme.secondaryText)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .accessibilityLabel("Close reflection")
+            
+            Spacer()
+            
+            Text("Reflect")
+                .font(AppTheme.Fonts.navTitle)
+                .foregroundColor(AppTheme.primaryText)
+            
+            Spacer()
+            
+            // Provides questions to reflect over
+            Button {
+                showingPrompts = true
+            } label: {
+                Image(systemName: "lightbulb")
+                    .font(AppTheme.Fonts.iconFont)
+                    .foregroundColor(AppTheme.secondaryText)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .accessibilityLabel("Show reflection prompts")
+        }
+        .padding(.horizontal, AppTheme.Spacing.lg)
+        .padding(.vertical, AppTheme.Spacing.lg)
+    }
     
+    // Performance Header
+    private var performanceHeader: some View {
+        VStack(spacing: AppTheme.Spacing.md) {
+            ZStack {
+                Circle()
+                    .fill(AppTheme.accentMuted)
+                    .frame(width: 70, height: 70)
+                
+                Image(systemName: performanceIcon)
+                    .font(.system(size: 28, weight: .medium))
+                    .foregroundColor(AppTheme.accent)
+            }
+            
+            Text(performanceHeadline)
+                .font(AppTheme.Fonts.screenTitle)
+                .foregroundColor(AppTheme.primaryText)
+
+            Text(performanceSubtitle)
+                .font(AppTheme.Fonts.screenSubtitle)
+                .foregroundColor(AppTheme.tertiaryText)
+                .multilineTextAlignment(.center)
+        }
+        .padding(.top, AppTheme.Spacing.sm)
+    }
+    
+    // Choose icon based on performance
+    private var performanceIcon: String {
+        guard let recording = recording else { return "brain.head.profile" }
+        let ratio = recording.speakingRatio
+        if ratio > 0.75 { return "flame.fill" }
+        if ratio > 0.5 { return "checkmark.seal.fill" }
+        return "arrow.up.circle.fill"
+    }
+    
+    // Generate headline from recording data
+    private var performanceHeadline: String {
+        guard let recording = recording else { return "Take a moment to reflect" }
+        let ratio = recording.speakingRatio
+        
+        if ratio > 0.75 {
+            return "Strong session 🔥"
+        } else if ratio > 0.5 {
+            return "Solid practice 👏"
+        } else {
+            return "Good effort 💪"
+        }
+    }
+    
+    // Generate subtitle from actual metrics
+    private var performanceSubtitle: String {
+        guard let recording = recording else {
+            return "A few words is enough.\nThis helps you grow faster."
+        }
+        
+        let speakingPercent = Int(recording.speakingRatio * 100)
+        let pauseCount = recording.pauses.count
+        let duration = Int(recording.duration)
+        let minutes = duration / 60
+        let seconds = duration % 60
+        
+        var parts: [String] = []
+        
+        // Duration
+        if minutes > 0 {
+            parts.append("You practiced for \(minutes)m \(seconds)s")
+        } else {
+            parts.append("You practiced for \(seconds) seconds")
+        }
+        
+        // Speaking ratio insight
+        if speakingPercent > 75 {
+            parts.append("and spoke \(speakingPercent)% of the time — focused delivery.")
+        } else if speakingPercent > 50 {
+            parts.append("with a good balance of speaking and pauses.")
+        } else {
+            parts.append("with plenty of pauses to gather your thoughts.")
+        }
+        
+        // Pause insight
+        let longPauses = recording.pauses.filter { $0 > 2.0 }.count
+        if longPauses > 0 {
+            parts.append("\(longPauses) longer pause\(longPauses == 1 ? "" : "s") — those can be intentional or worth working on.")
+        } else if pauseCount > 0 {
+            parts.append("Your pauses were short and natural.")
+        }
+        
+        return parts.joined(separator: " ")
+    }
+    
+    // Selecting mood in emoji form
+    private var moodSection: some View {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
+            Text("How did that feel?")
+                .font(AppTheme.Fonts.smallLabel)
+                .foregroundColor(AppTheme.tertiaryText)
+                .tracking(0.5)
+            
+            HStack(spacing: AppTheme.Spacing.md) {
+                ForEach(ReflectionMood.allCases, id: \.self) { mood in
+                    MoodButton(
+                        mood: mood,
+                        isSelected: selectedMood == mood
+                    ) {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            selectedMood = mood
+                        }
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    }
+                }
+            }
+        }
+        .padding(AppTheme.Spacing.lg)
+        .background(AppTheme.cardBackground)
+        .cornerRadius(AppTheme.Radius.card)
+    }
+    
+    // Tags to summarize the session
+    private var tagsSection: some View {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
+            Text("What stood out?")
+                .font(AppTheme.Fonts.smallLabel)
+                .foregroundColor(AppTheme.tertiaryText)
+                .tracking(0.5)
+            
+            FlowLayout(spacing: 8) {
+                ForEach(quickTags, id: \.self) { tag in
+                    QuickTagButton(
+                        tag: tag,
+                        isSelected: selectedTags.contains(tag)
+                    ) {
+                        toggleTag(tag)
+                    }
+                }
+            }
+        }
+        .padding(AppTheme.Spacing.lg)
+        .background(AppTheme.cardBackground)
+        .cornerRadius(AppTheme.Radius.card)
+    }
+    
+    // Optional Notes section
+    private var noteSection: some View {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
+            HStack(spacing: AppTheme.Spacing.sm) {
+                Image(systemName: "square.and.pencil")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(AppTheme.accent)
+                
+                Text("Anything else?")
+                    .font(AppTheme.Fonts.smallLabel)
+                    .foregroundColor(AppTheme.tertiaryText)
+                    .tracking(0.5)
+                
+                Spacer()
+                
+                Text("Optional")
+                    .font(AppTheme.Fonts.smallLabel)
+                    .foregroundColor(AppTheme.mutedText)
+            }
+            
+            ZStack(alignment: .topLeading) {
+                if note.isEmpty {
+                    Text("A quick thought, something to remember, or nothing at all...")
+                        .font(AppTheme.Fonts.screenSubtitle)
+                        .foregroundColor(AppTheme.mutedText)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 12)
+                }
+                
+                TextEditor(text: $note)
+                    .font(AppTheme.Fonts.screenSubtitle)
+                    .foregroundColor(AppTheme.primaryText)
+                    .scrollContentBackground(.hidden)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, AppTheme.Spacing.sm)
+                    .focused($isNoteFocused)
+            }
+            .frame(minHeight: 80)
+            .background(AppTheme.cardBackground)
+            .cornerRadius(AppTheme.Radius.card)
+            .overlay(
+                RoundedRectangle(cornerRadius: AppTheme.Radius.card)
+                    .stroke(
+                        isNoteFocused ? AppTheme.borderSelected : AppTheme.border,
+                        lineWidth: 1
+                    )
+            )
+        }
+        .padding(AppTheme.Spacing.lg)
+        .background(Color.white.opacity(0.03))
+        .cornerRadius(AppTheme.Radius.card)
+    }
+    
+    // Action Buttons
+    private var actionButtons: some View {
+        VStack(spacing: AppTheme.Spacing.md) {
+            Button {
+                saveReflection()
+                currentScreen = .history
+            } label: {
+                HStack {
+                    Image(systemName: "checkmark.circle.fill")
+                    Text("Finish Session")
+                }
+                .font(AppTheme.Fonts.buttonLabel)
+                .foregroundColor(AppTheme.primaryText)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, AppTheme.Spacing.lg)
+                .background(
+                    RoundedRectangle(cornerRadius: AppTheme.Radius.button)
+                        .fill(AppTheme.accent)
+                )
+            }
+            .accessibilityHint("Saves your reflection and returns to history")
+            
+            Button {
+                currentScreen = .history
+            } label: {
+                Text("Skip reflection")
+                    .font(AppTheme.Fonts.secondaryButton)
+                    .foregroundColor(AppTheme.secondaryText)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, AppTheme.Spacing.md)
+                    .background(
+                        RoundedRectangle(cornerRadius: AppTheme.Radius.button)
+                            .stroke(AppTheme.border, lineWidth: 1)
+                    )
+            }
+            .accessibilityHint("Skips reflection and returns to history")
+        }
+        .padding(.horizontal, AppTheme.Spacing.lg)
+        .padding(.bottom, AppTheme.Spacing.xxl)
+        .background(
+            LinearGradient(
+                colors: [
+                    AppTheme.background.opacity(0),
+                    AppTheme.background,
+                    AppTheme.background
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .frame(height: 80)
+            .allowsHitTesting(false)
+            .offset(y: -40),
+            alignment: .top
+        )
+    }
+        
     private var quickTags: [String] {
         [
             "Felt rushed",
@@ -233,43 +357,32 @@ struct ReflectionView: View {
         ]
     }
     
-    private func addTag(_ tag: String) {
-        // Add to the most relevant field based on the tag
-        let positiveKeywords = ["good", "strong", "confident", "calm"]
-        let negativeKeywords = ["rushed", "lost", "need", "weak", "too many"]
-        
-        let tagLower = tag.lowercased()
-        
-        if positiveKeywords.contains(where: { tagLower.contains($0) }) {
-            if !goodPart.isEmpty && !goodPart.hasSuffix(" ") {
-                goodPart += ", "
+    private func toggleTag(_ tag: String) {
+        withAnimation(.easeInOut(duration: 0.15)) {
+            if selectedTags.contains(tag) {
+                selectedTags.remove(tag)
+            } else {
+                selectedTags.insert(tag)
             }
-            goodPart += tag
-        } else if negativeKeywords.contains(where: { tagLower.contains($0) }) {
-            if !hardPart.isEmpty && !hardPart.hasSuffix(" ") {
-                hardPart += ", "
-            }
-            hardPart += tag
-        } else {
-            if !nextTimeFocus.isEmpty && !nextTimeFocus.hasSuffix(" ") {
-                nextTimeFocus += ", "
-            }
-            nextTimeFocus += tag
         }
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
     
+    // Saves reflection data to the recording
     private func saveReflection() {
-        // TODO: Save reflection to recording or separate storage
-        // For now, just print
-        print("Reflection saved:")
-        print("Mood: \(selectedMood?.label ?? "None")")
-        print("Hard: \(hardPart)")
-        print("Good: \(goodPart)")
-        print("Next: \(nextTimeFocus)")
+        let reflection = Reflection(
+            mood: selectedMood?.label ?? "None",
+            tags: Array(selectedTags),
+            note: note.trimmingCharacters(in: .whitespacesAndNewlines),
+            date: Date()
+        )
+        
+        if let recording = recording {
+            audioManager.saveReflection(reflection, for: recording)
+        }
     }
 }
 
-// MARK: - Reflection Mood
 
 enum ReflectionMood: CaseIterable {
     case great
@@ -280,8 +393,8 @@ enum ReflectionMood: CaseIterable {
     var emoji: String {
         switch self {
         case .great: return "🔥"
-        case .good: return "😊"
-        case .okay: return "😐"
+        case .good:  return "😊"
+        case .okay:  return "😐"
         case .rough: return "😤"
         }
     }
@@ -289,8 +402,8 @@ enum ReflectionMood: CaseIterable {
     var label: String {
         switch self {
         case .great: return "Great"
-        case .good: return "Good"
-        case .okay: return "Okay"
+        case .good:  return "Good"
+        case .okay:  return "Okay"
         case .rough: return "Rough"
         }
     }
@@ -298,14 +411,12 @@ enum ReflectionMood: CaseIterable {
     var color: Color {
         switch self {
         case .great: return .green
-        case .good: return .cyan
-        case .okay: return .yellow
+        case .good:  return .cyan
+        case .okay:  return .yellow
         case .rough: return .orange
         }
     }
 }
-
-// MARK: - Mood Button
 
 struct MoodButton: View {
     let mood: ReflectionMood
@@ -314,119 +425,91 @@ struct MoodButton: View {
     
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 8) {
+            VStack(spacing: AppTheme.Spacing.sm) {
                 Text(mood.emoji)
                     .font(.system(size: 28))
                 
                 Text(mood.label)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(isSelected ? mood.color : .white.opacity(0.5))
+                    .font(AppTheme.Fonts.smallLabel)
+                    .foregroundColor(isSelected ? mood.color : AppTheme.tertiaryText)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
             .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(isSelected ? mood.color.opacity(0.15) : Color.white.opacity(0.05))
+                RoundedRectangle(cornerRadius: AppTheme.Radius.card)
+                    .fill(isSelected ? mood.color.opacity(0.15) : AppTheme.cardBackground)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(isSelected ? mood.color.opacity(0.5) : Color.clear, lineWidth: 2)
+                        RoundedRectangle(cornerRadius: AppTheme.Radius.card)
+                            .stroke(
+                                isSelected ? mood.color.opacity(0.5) : Color.clear,
+                                lineWidth: 2
+                            )
                     )
             )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressableButtonStyle())
+        .accessibilityLabel("\(mood.label) mood")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 
-// MARK: - Reflection Text Field
 
-struct ReflectionTextField: View {
-    let title: String
-    let placeholder: String
-    @Binding var text: String
-    let icon: String
-    let color: Color
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
-                Image(systemName: icon)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(color)
-                
-                Text(title)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.white)
-            }
-            
-            ZStack(alignment: .topLeading) {
-                if text.isEmpty {
-                    Text(placeholder)
-                        .font(.system(size: 15))
-                        .foregroundColor(.white.opacity(0.3))
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 12)
-                }
-                
-                TextEditor(text: $text)
-                    .font(.system(size: 15))
-                    .foregroundColor(.white)
-                    .scrollContentBackground(.hidden)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 8)
-            }
-            .frame(minHeight: 80)
-            .background(Color.white.opacity(0.05))
-            .cornerRadius(12)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(color.opacity(text.isEmpty ? 0 : 0.3), lineWidth: 1)
-            )
-        }
-        .padding(16)
-        .background(Color.white.opacity(0.03))
-        .cornerRadius(16)
-    }
-}
-
-// MARK: - Quick Tag Button
 
 struct QuickTagButton: View {
     let tag: String
+    let isSelected: Bool
     let action: () -> Void
     
     var body: some View {
         Button(action: action) {
             Text(tag)
-                .font(.system(size: 13, weight: .medium))
-                .foregroundColor(.white.opacity(0.7))
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(Color.white.opacity(0.1))
-                .cornerRadius(20)
+                .font(AppTheme.Fonts.smallLabel)
+                .foregroundColor(isSelected ? AppTheme.accent : AppTheme.secondaryText)
+                .padding(.horizontal, AppTheme.Spacing.md)
+                .padding(.vertical, AppTheme.Spacing.sm)
+                .background(
+                    RoundedRectangle(cornerRadius: 20)
+                        .fill(isSelected ? AppTheme.accentMuted : AppTheme.cardBackground)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20)
+                        .stroke(
+                            isSelected ? AppTheme.accent.opacity(0.4) : Color.clear,
+                            lineWidth: 1
+                        )
+                )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressableButtonStyle())
+        .accessibilityLabel(tag)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 
-// MARK: - Flow Layout (for tags)
 
 struct FlowLayout: Layout {
     var spacing: CGFloat = 8
     
+    // Measure size
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         let result = FlowResult(in: proposal.width ?? 0, subviews: subviews, spacing: spacing)
         return result.size
     }
     
+    // Place view at calculated position
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
         let result = FlowResult(in: bounds.width, subviews: subviews, spacing: spacing)
         for (index, subview) in subviews.enumerated() {
-            subview.place(at: CGPoint(x: bounds.minX + result.positions[index].x,
-                                      y: bounds.minY + result.positions[index].y),
-                         proposal: .unspecified)
+            subview.place(
+                at: CGPoint(
+                    x: bounds.minX + result.positions[index].x,
+                    y: bounds.minY + result.positions[index].y
+                ),
+                proposal: .unspecified
+            )
         }
     }
     
+    // Finds the positions of the tags
     struct FlowResult {
         var size: CGSize = .zero
         var positions: [CGPoint] = []
@@ -457,18 +540,18 @@ struct FlowLayout: Layout {
     }
 }
 
-// MARK: - Session Summary Card
-
+// Session stats
 struct SessionSummaryCard: View {
     let recording: Recording
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Session Summary")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundColor(.white.opacity(0.5))
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
+            Text("SESSION SUMMARY")
+                .font(AppTheme.Fonts.smallLabel)
+                .foregroundColor(AppTheme.tertiaryText)
+                .tracking(0.8)
             
-            HStack(spacing: 16) {
+            HStack(spacing: AppTheme.Spacing.lg) {
                 SummaryItem(
                     icon: "clock",
                     value: formatDuration(recording.duration),
@@ -488,9 +571,9 @@ struct SessionSummaryCard: View {
                 )
             }
         }
-        .padding(16)
-        .background(Color.white.opacity(0.05))
-        .cornerRadius(16)
+        .padding(AppTheme.Spacing.lg)
+        .background(AppTheme.cardBackground)
+        .cornerRadius(AppTheme.Radius.card)
     }
     
     private func formatDuration(_ duration: TimeInterval) -> String {
@@ -508,22 +591,21 @@ struct SummaryItem: View {
     var body: some View {
         VStack(spacing: 6) {
             Image(systemName: icon)
-                .font(.system(size: 16, weight: .medium))
-                .foregroundColor(.blue)
+                .font(AppTheme.Fonts.iconFont)
+                .foregroundColor(AppTheme.accent)
             
             Text(value)
                 .font(.system(size: 18, weight: .bold))
-                .foregroundColor(.white)
+                .foregroundColor(AppTheme.primaryText)
             
             Text(label)
-                .font(.system(size: 11))
-                .foregroundColor(.white.opacity(0.5))
+                .font(AppTheme.Fonts.smallLabel)
+                .foregroundColor(AppTheme.tertiaryText)
         }
         .frame(maxWidth: .infinity)
     }
 }
 
-// MARK: - Reflection Prompts Sheet
 
 struct ReflectionPromptsSheet: View {
     @Environment(\.dismiss) var dismiss
@@ -570,15 +652,15 @@ struct ReflectionPromptsSheet: View {
             VStack(spacing: 0) {
                 // Handle
                 RoundedRectangle(cornerRadius: 2.5)
-                    .fill(Color.white.opacity(0.3))
+                    .fill(AppTheme.mutedText)
                     .frame(width: 36, height: 5)
                     .padding(.top, 10)
                 
                 // Header
                 HStack {
                     Text("Reflection Prompts")
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundColor(.white)
+                        .font(AppTheme.Fonts.screenTitle)
+                        .foregroundColor(AppTheme.primaryText)
                     
                     Spacer()
                     
@@ -587,19 +669,24 @@ struct ReflectionPromptsSheet: View {
                     } label: {
                         Image(systemName: "xmark.circle.fill")
                             .font(.system(size: 24))
-                            .foregroundColor(.white.opacity(0.5))
+                            .foregroundColor(AppTheme.tertiaryText)
+                            // ADDED: Proper tap target
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
                     }
+                    .accessibilityLabel("Close prompts")
                 }
-                .padding()
+                .padding(.horizontal, AppTheme.Spacing.lg)
+                .padding(.top, AppTheme.Spacing.lg)
                 
                 // Prompts
                 ScrollView {
-                    VStack(spacing: 16) {
+                    VStack(spacing: AppTheme.Spacing.lg) {
                         ForEach(prompts, id: \.category) { prompt in
                             PromptCategoryCard(prompt: prompt)
                         }
                     }
-                    .padding(.horizontal)
+                    .padding(.horizontal, AppTheme.Spacing.lg)
                     .padding(.bottom, 30)
                 }
             }
@@ -618,34 +705,36 @@ struct PromptCategoryCard: View {
     let prompt: ReflectionPrompt
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
             Text(prompt.category)
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundColor(.blue)
+                .font(AppTheme.Fonts.cardTitle)
+                .foregroundColor(AppTheme.accent)
             
             ForEach(prompt.questions, id: \.self) { question in
                 HStack(alignment: .top, spacing: 10) {
                     Image(systemName: "circle.fill")
                         .font(.system(size: 6))
-                        .foregroundColor(.white.opacity(0.4))
+                        .foregroundColor(AppTheme.mutedText)
                         .padding(.top, 6)
                     
                     Text(question)
-                        .font(.system(size: 15))
-                        .foregroundColor(.white.opacity(0.8))
+                        .font(AppTheme.Fonts.screenSubtitle)
+                        .foregroundColor(AppTheme.secondaryText)
                 }
             }
         }
-        .padding(16)
+        .padding(AppTheme.Spacing.lg)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.white.opacity(0.05))
-        .cornerRadius(16)
+        .background(AppTheme.cardBackground)
+        .cornerRadius(AppTheme.Radius.card)
     }
 }
 
-// MARK: - Previews
+// Previews
 
 #Preview("Reflection View") {
+    let audioManager = AudioManager()
+    
     let recording = Recording(
         id: UUID(),
         url: URL(fileURLWithPath: "/dev/null"),
@@ -657,15 +746,39 @@ struct PromptCategoryCard: View {
     )
     
     ReflectionView(
-        currentScreen: .constant(.reflection(recording)),  // ✅ Pass recording
-        recording: recording
+        currentScreen: .constant(.reflection(recording)),
+        recording: recording,
+        audioManager: audioManager
+    )
+}
+
+#Preview("Reflection View - Short Session") {
+    let audioManager = AudioManager()
+    
+    let recording = Recording(
+        id: UUID(),
+        url: URL(fileURLWithPath: "/dev/null"),
+        date: Date(),
+        duration: 30,
+        speakingTime: 10,
+        pauses: [0.4, 0.8, 3.2, 4.1],
+        notes: nil
+    )
+    
+    ReflectionView(
+        currentScreen: .constant(.reflection(recording)),
+        recording: recording,
+        audioManager: audioManager
     )
 }
 
 #Preview("Reflection View - No Recording") {
+    let audioManager = AudioManager()
+    
     ReflectionView(
-        currentScreen: .constant(.reflection(nil)),  // ✅ Pass nil
-        recording: nil
+        currentScreen: .constant(.reflection(nil)),
+        recording: nil,
+        audioManager: audioManager
     )
 }
 

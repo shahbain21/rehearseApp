@@ -39,8 +39,10 @@ struct ContentView: View {
         case .reflection(let recording):
             ReflectionView(
                 currentScreen: $screen,
-                recording: recording
+                recording: recording,
+                audioManager: audioManager
             )
+
         }
     }
 }
