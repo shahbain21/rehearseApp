@@ -137,14 +137,14 @@ final class AudioManager: NSObject, ObservableObject {
     }
     
     // Ends recording and saves it
-    func stopRecording() {
+    func stopRecording(mode: PracticeMode) {
         finalizeLastPauseIfNeeded()
         endRecordingSession()
-        saveRecording()
+        saveRecording(mode: mode)
     }
 
     // Saves recording and adds it to array
-    private func saveRecording() {
+    func saveRecording(mode: PracticeMode) {
         guard let url = currentRecordingURL else { return }
 
         let recording = Recording(
@@ -155,12 +155,12 @@ final class AudioManager: NSObject, ObservableObject {
             speakingTime: speakingTime,
             pauses: pauses,
             notes: NotesStore.shared.currentNotes,
-            volumeSamples: volumeSamples.isEmpty ? nil : volumeSamples
+            volumeSamples: volumeSamples.isEmpty ? nil : volumeSamples,
+            mode: mode 
         )
 
         recordings.insert(recording, at: 0)
         persistRecordings()
-
         NotesStore.shared.currentNotes = nil
     }
 
@@ -313,6 +313,12 @@ final class AudioManager: NSObject, ObservableObject {
         meterUpdateCount = 0
     }
 
+    func updateTranscript(_ transcript: TranscriptResult, for recording: Recording) {
+        if let index = recordings.firstIndex(where: { $0.id == recording.id }) {
+            recordings[index].transcript = transcript
+            persistRecordings()
+        }
+    }
     
     // Playing Audio
 

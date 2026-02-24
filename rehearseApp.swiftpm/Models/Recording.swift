@@ -15,28 +15,35 @@ struct Recording: Codable, Identifiable {
     let pauses: [TimeInterval]
     let notes: String?
     let volumeSamples: [Float]?
+    var mode: PracticeMode?
     var reflection: Reflection?
+    var transcript: TranscriptResult?
+
 
     
     init(
-            id: UUID,
-            url: URL,
-            date: Date,
-            duration: TimeInterval,
-            speakingTime: TimeInterval,
-            pauses: [TimeInterval],
-            notes: String?,
-            volumeSamples: [Float]? = nil  
-        ) {
-            self.id = id
-            self.url = url
-            self.date = date
-            self.duration = duration
-            self.speakingTime = speakingTime
-            self.pauses = pauses
-            self.notes = notes
-            self.volumeSamples = volumeSamples
-        }
+        id: UUID,
+        url: URL,
+        date: Date,
+        duration: TimeInterval,
+        speakingTime: TimeInterval,
+        pauses: [TimeInterval],
+        notes: String?,
+        volumeSamples: [Float]? = nil,
+        mode: PracticeMode? = nil,
+        reflection: Reflection? = nil
+    ) {
+        self.id = id
+        self.url = url
+        self.date = date
+        self.duration = duration
+        self.speakingTime = speakingTime
+        self.pauses = pauses
+        self.notes = notes
+        self.volumeSamples = volumeSamples
+        self.mode = mode
+        self.reflection = reflection
+    }
     
     // Computed Properties for Feedback
     

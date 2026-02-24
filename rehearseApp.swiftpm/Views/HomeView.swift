@@ -126,9 +126,9 @@ struct HomeView: View {
                         .fill(AppTheme.accentMuted)
                         .frame(width: 36, height: 36)
                     
-                    Image(systemName: "waveform")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(AppTheme.accent)
+                    Image(systemName: recording.mode?.icon ?? "waveform")
+                                        .font(.system(size: 14, weight: .medium))
+                                        .foregroundColor(AppTheme.accent)
                 }
                 
                 // Session details
@@ -138,9 +138,11 @@ struct HomeView: View {
                         .foregroundColor(AppTheme.tertiaryText)
                     
                     // When it was recorded
-                    Text("\(formatDuration(recording.duration)) · \(recording.pauses.count) pauses · \(timeAgo(recording.date))")
-                        .font(AppTheme.Fonts.caption)
-                        .foregroundColor(AppTheme.secondaryText)
+                    let modeText = recording.mode?.displayName ?? ""
+                                    let separator = modeText.isEmpty ? "" : " · "
+                                    Text("\(modeText)\(separator)\(formatDuration(recording.duration)) · \(recording.pauses.count) pauses · \(timeAgo(recording.date))")
+                                        .font(AppTheme.Fonts.caption)
+                                        .foregroundColor(AppTheme.secondaryText)
                 }
                 
                 Spacer()

@@ -67,7 +67,7 @@ struct RecordingView: View {
                 currentScreen = .home
             }
             Button("Stop & Save") {
-                audioManager.stopRecording()
+                audioManager.stopRecording(mode: mode) 
                 if let latest = audioManager.recordings.first {
                     currentScreen = .feedback(latest)
                 } else {
@@ -211,7 +211,7 @@ struct RecordingView: View {
             // History button
             Button {
                 if audioManager.isRecording {
-                    audioManager.stopRecording()
+                    audioManager.stopRecording(mode: mode)
                 }
                 withAnimation {
                     currentScreen = .history
@@ -329,7 +329,7 @@ struct RecordingView: View {
     // Actions
     private func toggleRecording() {
         if audioManager.isRecording {
-            audioManager.stopRecording()
+            audioManager.stopRecording(mode: mode)
             UINotificationFeedbackGenerator().notificationOccurred(.success)
 
             if let latest = audioManager.recordings.first {

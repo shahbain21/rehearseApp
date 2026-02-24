@@ -1,5 +1,4 @@
 {
-	CFBundleIdentifier = "";
-	"NSMicrophoneUsageDescription" = "This app uses the microphone to record and analyze practice presentations.";
-	"NSSpeechRecognitionUsageDescription" = "This app uses speech recognition to transcribe your recordings and detect filler words.";
+    "NSSpeechRecognitionUsageDescription": "This app uses speech recognition to transcribe your recordings and detect filler words.",
+    "NSMicrophoneUsageDescription": "This app uses the microphone to record and analyze practice presentations."
 }

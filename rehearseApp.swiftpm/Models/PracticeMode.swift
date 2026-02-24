@@ -59,4 +59,13 @@ enum PracticeMode: Codable, Hashable, CaseIterable {
             return "Just speak and reflect"
         }
     }
+    
+    var shortName: String {
+        switch self {
+        case .interview:    return "Interview"
+        case .presentation: return "Present"
+        case .storytelling: return "Story"
+        case .free:         return "Free"
+        }
+    }
 }
