@@ -31,7 +31,6 @@ struct PracticeCard: View {
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
     
-    // Individual struct for icon circle
     private var iconCircle: some View {
         ZStack {
             Circle()
@@ -44,7 +43,6 @@ struct PracticeCard: View {
         }
     }
     
-    // Individual struct for the text
     private var textContent: some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.xs) {
             Text(title)
@@ -57,7 +55,6 @@ struct PracticeCard: View {
         }
     }
     
-    // Individual struct for the selection indicator circles
     private var selectionIndicator: some View {
         ZStack {
             Circle()
@@ -75,7 +72,7 @@ struct PracticeCard: View {
         }
     }
     
-    // Individual struct for the background
+    
     private var cardBackground: some View {
         RoundedRectangle(cornerRadius: AppTheme.Radius.card)
             .fill(isSelected ? accentColor.opacity(0.12) : AppTheme.cardBackground)
@@ -87,12 +84,12 @@ struct PracticeCard: View {
     }
 }
 
+// Preview
 #Preview("Practice Card") {
     ZStack {
         AppTheme.background.ignoresSafeArea()
         
         VStack(spacing: AppTheme.Spacing.md) {
-            // CHANGED: Preview now shows different mode colors
             PracticeCard(
                 icon: "person.fill.questionmark",
                 title: "Interview",

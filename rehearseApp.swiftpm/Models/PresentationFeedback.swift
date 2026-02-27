@@ -6,7 +6,6 @@
 //
 import SwiftUI
 
-// MARK: - Feedback Tone
 
 enum FeedbackTone {
     case excellent
@@ -42,8 +41,6 @@ enum FeedbackTone {
     }
 }
 
-// MARK: - Metric Rating
-
 enum MetricRating {
     case excellent
     case good
@@ -69,8 +66,6 @@ enum MetricRating {
     }
 }
 
-// MARK: - Detailed Metric
-
 struct DetailedMetric {
     let name: String
     let value: String
@@ -79,8 +74,6 @@ struct DetailedMetric {
     let tip: String?
     let icon: String
 }
-
-// MARK: - Insight
 
 struct FeedbackInsight: Identifiable {
     let id = UUID()
@@ -111,17 +104,6 @@ struct FeedbackInsight: Identifiable {
     }
 }
 
-// MARK: - Practice Exercise
-
-struct PracticeExercise: Identifiable {
-    let id = UUID()
-    let title: String
-    let description: String
-    let duration: String
-    let icon: String
-}
-
-// MARK: - Presentation Feedback
 
 struct PresentationFeedback {
     let overallScore: Int
@@ -130,5 +112,4 @@ struct PresentationFeedback {
     let durationText: String
     let metrics: [DetailedMetric]
     let insights: [FeedbackInsight]
-    let exercises: [PracticeExercise]
 }

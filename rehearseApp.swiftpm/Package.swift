@@ -8,19 +8,19 @@ import PackageDescription
 import AppleProductTypes
 
 let package = Package(
-    name: "rehearseApp",
+    name: "Rehearse",
     platforms: [
         .iOS("16.0")
     ],
     products: [
         .iOSApplication(
-            name: "rehearseApp",
+            name: "Rehearse",
             targets: ["AppModule"],
             bundleIdentifier: "name.shahbain.rehearseApp",
             teamIdentifier: "7C7WV8TT97",
             displayVersion: "1.0",
             bundleVersion: "1",
-            appIcon: .placeholder(icon: .cloud),
+            appIcon: .asset("AppIcon"),
             accentColor: .presetColor(.blue),
             supportedDeviceFamilies: [
                 .pad,

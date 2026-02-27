@@ -1,20 +1,6 @@
 import AVFoundation
 import Foundation
 
-/*
- AudioManager records audio and estimates speaking behavior.
-
- Every `meterInterval` seconds:
- - Measure microphone loudness (in dB)
- - If loudness > speechThreshold → user is speaking
- - Otherwise → silence
-
- From this we derive:
- - Total recording duration
- - Total speaking time
- - Durations of pauses between speaking segments
-*/
-
 @MainActor
 final class AudioManager: NSObject, ObservableObject {
 
@@ -103,17 +89,40 @@ final class AudioManager: NSObject, ObservableObject {
     
     // Asks permission than starts recording
     func startRecording() {
-        requestMicrophonePermission { granted in
-            guard granted else {
-                print("Microphone permission denied")
-                return
-            }
+        let status = AVAudioSession.sharedInstance().recordPermission
 
+        switch status {
+        case .granted:
+            // Already have permission — start immediately
             do {
-                try self.beginRecordingSession()
+                try beginRecordingSession()
             } catch {
                 print("Recording failed:", error)
             }
+
+        case .undetermined:
+            // First time — request, then start with delay
+            requestMicrophonePermission { granted in
+                guard granted else {
+                    print("Microphone permission denied")
+                    return
+                }
+
+                // Give the system a moment to settle after permission dialog
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    do {
+                        try self.beginRecordingSession()
+                    } catch {
+                        print("Recording failed:", error)
+                    }
+                }
+            }
+
+        case .denied:
+            print("Microphone permission denied")
+
+        @unknown default:
+            break
         }
     }
 

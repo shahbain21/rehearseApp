@@ -28,10 +28,8 @@ struct NotesView: View {
                 .onTapGesture {
                     isEditorFocused = false
                 }
-
             VStack(spacing: AppTheme.Spacing.xl) {
                 topBar
-                
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: AppTheme.Spacing.xl) {
                         headerSection
@@ -39,10 +37,10 @@ struct NotesView: View {
                         notesEditor
                     }
                 }
-                
                 actionButtons
             }
         }
+        // When import is selected, get text from file selected
         .fileImporter(
             isPresented: $showingFileImporter,
             allowedContentTypes: [.plainText],
@@ -145,7 +143,7 @@ struct NotesView: View {
         .padding(.top, AppTheme.Spacing.sm)
     }
     
-    // Header
+    // Mode Specific Header
     private var headerSection: some View {
         VStack(spacing: AppTheme.Spacing.md) {
             Text(titleText)
@@ -163,7 +161,7 @@ struct NotesView: View {
     // Quick Actions
     private var quickActions: some View {
         HStack(spacing: AppTheme.Spacing.md) {
-            // Import button
+            // Button to import from files
             QuickActionButton(
                 icon: "doc.text",
                 title: "Import"
@@ -171,7 +169,7 @@ struct NotesView: View {
                 showingFileImporter = true
             }
             
-            // Template button — now confirms before overwriting
+            // Button for custom made templates
             QuickActionButton(
                 icon: "list.bullet.rectangle",
                 title: "Template"
@@ -185,7 +183,7 @@ struct NotesView: View {
                 }
             }
             
-            // Clear button — now confirms before clearing
+            // Button to clear notes
             QuickActionButton(
                 icon: "trash",
                 title: "Clear"
@@ -202,6 +200,7 @@ struct NotesView: View {
     private var notesEditor: some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.sm) {
             ZStack(alignment: .topLeading) {
+                // Placeholder text
                 if notes.isEmpty {
                     Text(placeholderText)
                         .font(AppTheme.Fonts.screenSubtitle)
@@ -221,6 +220,7 @@ struct NotesView: View {
             .frame(minHeight: 180, maxHeight: .infinity)
             .background(AppTheme.cardBackground)
             .cornerRadius(AppTheme.Radius.card)
+            // Highlights box when focused
             .overlay(
                 RoundedRectangle(cornerRadius: AppTheme.Radius.card)
                     .stroke(
@@ -240,38 +240,13 @@ struct NotesView: View {
     private var statsRow: some View {
         HStack {
             if !notes.isEmpty {
-//                let lineCount = notes.components(separatedBy: "\n")
-//                    .filter { !$0.isEmpty }.count
-                
-//                // Line Count
-//                Text("\(lineCount) lines")
-//                    .font(AppTheme.Fonts.smallLabel)
-//                    .foregroundColor(AppTheme.mutedText)
-                
-                // Dot separator
-                Text("·")
-                    .font(AppTheme.Fonts.smallLabel)
-                    .foregroundColor(AppTheme.mutedText)
-                
                 // Word count
                 Text("\(wordCount) words")
                     .font(AppTheme.Fonts.smallLabel)
                     .foregroundColor(AppTheme.mutedText)
-                
-//                // Estimated speaking time
-//                if wordCount >= 10 {
-//                    Text("·")
-//                        .font(AppTheme.Fonts.smallLabel)
-//                        .foregroundColor(AppTheme.mutedText)
-//                    
-//                    Text("~\(estimatedSpeakingTime)")
-//                        .font(AppTheme.Fonts.smallLabel)
-//                        .foregroundColor(AppTheme.accent.opacity(0.6))
-//                }
             }
-            
             Spacer()
-            
+            // Character Count
             Text("\(notes.count) characters")
                 .font(AppTheme.Fonts.smallLabel)
                 .foregroundColor(AppTheme.mutedText)
@@ -281,6 +256,7 @@ struct NotesView: View {
     // Action Buttons
     private var actionButtons: some View {
         VStack(spacing: AppTheme.Spacing.md) {
+            // Resets editor and moves to grounding
             Button {
                 isEditorFocused = false
                 NotesStore.shared.currentNotes =
@@ -301,7 +277,8 @@ struct NotesView: View {
                 )
             }
             .accessibilityHint("Starts your practice session with the notes you've written")
-
+            
+            // Deletes any notes and moves to grounding
             Button {
                 NotesStore.shared.currentNotes = nil
                 currentScreen = .grounding(mode)
@@ -337,26 +314,9 @@ struct NotesView: View {
     private var wordCount: Int {
         notes.split(separator: " ").count
     }
+
+    // Mode specific content
     
-//    // Estimated speaking time based on ~130 words per minute
-//    private var estimatedSpeakingTime: String {
-//        let minutes = Double(wordCount) / 130.0
-//        if minutes < 1 {
-//            let seconds = Int(minutes * 60)
-//            return "\(seconds)s speaking"
-//        } else {
-//            let mins = Int(minutes)
-//            let secs = Int((minutes - Double(mins)) * 60)
-//            if secs == 0 {
-//                return "\(mins)m speaking"
-//            } else {
-//                return "\(mins)m \(secs)s speaking"
-//            }
-//        }
-//    }
-
-    // Helpers
-
     private var modeTitle: String {
         switch mode {
         case .interview:
@@ -479,8 +439,7 @@ struct NotesView: View {
     }
 }
 
-// Quick Action Button
-
+// Template for Notes Action Buttons
 struct QuickActionButton: View {
     let icon: String
     let title: String

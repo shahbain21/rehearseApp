@@ -7,11 +7,8 @@
 
 import Foundation
 
-// MARK: - FeedbackGenerator
 
 struct FeedbackGenerator {
-
-    // MARK: - Public API
 
     static func generate(from recording: Recording) -> PresentationFeedback {
 
@@ -59,18 +56,11 @@ struct FeedbackGenerator {
                 longPauseCount: longPauseCount,
                 duration: duration,
                 volumeAnalysis: volumeAnalysis
-            ),
-            exercises: generateExercises(
-                speakingRatio: speakingRatio,
-                avgPause: avgPause,
-                longPauseCount: longPauseCount,
-                volumeAnalysis: volumeAnalysis
             )
         )
     }
 
-    // MARK: - Score Calculations
-
+    
     private static func scoreSpeakingRatio(_ ratio: Double) -> Double {
         switch ratio {
         case 0.65...0.80: return 100
@@ -108,7 +98,6 @@ struct FeedbackGenerator {
         }
     }
 
-    // MARK: - Summary
 
     private static func generateSummary(score: Int) -> String {
         switch score {
@@ -123,7 +112,6 @@ struct FeedbackGenerator {
         }
     }
 
-    // MARK: - Metrics (2 core + 1 optional)
 
     private static func generateMetrics(
         speakingRatio: Double,
@@ -181,7 +169,7 @@ struct FeedbackGenerator {
             icon: "exclamationmark.circle"
         ))
 
-        // Vocal Energy (only if volume data exists)
+        // Vocal Energy
 
         if volumeAnalysis.averageVolume != 0 {
             let energyRating: MetricRating = {
@@ -213,7 +201,7 @@ struct FeedbackGenerator {
         return metrics
     }
 
-    // MARK: - Insights (1 strength + 1 improvement + optional tip)
+    // Insights (1 strength + optional tip)
 
     private static func generateInsights(
         speakingRatio: Double,
@@ -360,88 +348,7 @@ struct FeedbackGenerator {
         return nil
     }
 
-    // MARK: - Exercises (1 targeted + 1 closing)
-
-    private static func generateExercises(
-        speakingRatio: Double,
-        avgPause: Double,
-        longPauseCount: Int,
-        volumeAnalysis: VolumeAnalysis
-    ) -> [PracticeExercise] {
-
-        var exercises: [PracticeExercise] = []
-
-        exercises.append(pickTargetedExercise(
-            speakingRatio: speakingRatio,
-            avgPause: avgPause,
-            longPauseCount: longPauseCount,
-            volumeAnalysis: volumeAnalysis
-        ))
-
-        exercises.append(PracticeExercise(
-            title: "Record & Compare",
-            description: "Do another recording and compare your metrics. Small improvements add up over time!",
-            duration: "2 min",
-            icon: "arrow.triangle.2.circlepath"
-        ))
-
-        return exercises
-    }
-
-    private static func pickTargetedExercise(
-        speakingRatio: Double,
-        avgPause: Double,
-        longPauseCount: Int,
-        volumeAnalysis: VolumeAnalysis
-    ) -> PracticeExercise {
-
-        // Prioritized by severity
-
-        if speakingRatio < 0.5 {
-            return PracticeExercise(
-                title: "Preparation Practice",
-                description: "Write down 3 bullet points, then speak about each for 30 seconds. Structure reduces hesitation.",
-                duration: "3 min",
-                icon: "list.bullet"
-            )
-        }
-
-        if avgPause > 1.5 || longPauseCount > 2 {
-            return PracticeExercise(
-                title: "Bridge Phrases",
-                description: "Practice using transitions like 'Building on that...', 'This connects to...' to fill pauses naturally.",
-                duration: "3 min",
-                icon: "link"
-            )
-        }
-
-        if volumeAnalysis.averageVolume != 0 && volumeAnalysis.isMonotone {
-            return PracticeExercise(
-                title: "Emphasis Practice",
-                description: "Pick a sentence and say it 3 ways: emphasize the first word, the middle, then the last.",
-                duration: "3 min",
-                icon: "waveform.path.ecg"
-            )
-        }
-
-        if speakingRatio > 0.90 {
-            return PracticeExercise(
-                title: "Intentional Pauses",
-                description: "Practice pausing for 1-2 seconds after each main point. Pauses add emphasis and let ideas sink in.",
-                duration: "3 min",
-                icon: "pause.fill"
-            )
-        }
-
-        return PracticeExercise(
-            title: "1-Minute Free Flow",
-            description: "Speak about any topic for 60 seconds without stopping. Focus on continuous flow, not perfection.",
-            duration: "1 min",
-            icon: "flame.fill"
-        )
-    }
-
-    // MARK: - Helpers
+    // Helpers
 
     private static func formatDuration(_ duration: TimeInterval) -> String {
         let minutes = Int(duration) / 60

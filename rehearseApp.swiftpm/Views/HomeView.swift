@@ -9,40 +9,14 @@ import SwiftUI
 
 struct HomeView: View {
     @Binding var currentScreen: AppScreen
-    // ADDED: Need access to AudioManager to pull the most recent recording
     @ObservedObject var audioManager: AudioManager
     @State private var selectedMode: PracticeMode? = nil
     @State private var appeared = false
-    @State private var motivationalLine: String = ""
-    
-    private let motivationalLines = [
-        "Confidence comes with reps.",
-        "Every practice counts.",
-        "Your voice matters — use it.",
-        "Progress, not perfection."
-    ]
-    
     private var canStart: Bool {
         selectedMode != nil
     }
     
-    // Pulls the most recent recording, sorted by date
-    private var lastRecording: Recording? {
-        audioManager.recordings
-            .sorted { $0.date > $1.date }
-            .first
-    }
-    
-    // Time-based greeting
-    private var greeting: String {
-        let hour = Calendar.current.component(.hour, from: Date())
-        switch hour {
-        case 5..<12:  return "Good morning 👋"
-        case 12..<17: return "Good afternoon 👋"
-        case 17..<22: return "Good evening 👋"
-        default:      return "Hey there 👋"
-        }
-    }
+
     
     var body: some View {
         ZStack {
@@ -50,18 +24,19 @@ struct HomeView: View {
             
             VStack(spacing: 0) {
                 topBar
-                
+                VStack(alignment: .leading, spacing: AppTheme.Spacing.xs) {
+                    Text("Select your practice mode")
+                        .font(AppTheme.Fonts.screenTitle)
+                        .foregroundColor(AppTheme.primaryText)
+                }
+                .padding(.horizontal, AppTheme.Spacing.xxl)
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: AppTheme.Spacing.xl) {
-                        greetingSection
-                        if let recording = lastRecording {
-                            lastSessionCard(recording)
-                        }
                         modeList
                     }
                     .padding(.bottom, AppTheme.Spacing.lg)
+                    .padding(.top, AppTheme.Spacing.xl)
                 }
-                
                 actionButtons
             }
         }
@@ -69,20 +44,14 @@ struct HomeView: View {
             withAnimation {
                 appeared = true
             }
-            motivationalLine = motivationalLines.randomElement()
-            ?? motivationalLines[0]
+
         }
     }
     
     // Top Bar
     private var topBar: some View {
         HStack {
-            Text("Rehearse")
-                .font(AppTheme.Fonts.navTitle)
-                .foregroundColor(AppTheme.primaryText)
-            
             Spacer()
-            
             Button {
                 currentScreen = .history
             } label: {
@@ -99,87 +68,10 @@ struct HomeView: View {
         .padding(.bottom, AppTheme.Spacing.sm)
     }
     
-    // Greeting
-    private var greetingSection: some View {
-        VStack(spacing: AppTheme.Spacing.sm) {
-            Text(greeting)
-                .font(AppTheme.Fonts.screenTitle)
-                .foregroundColor(AppTheme.primaryText)
-            
-            Text(motivationalLine)
-                .font(AppTheme.Fonts.screenSubtitle)
-                .foregroundColor(AppTheme.tertiaryText)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.top, AppTheme.Spacing.md)
-    }
-    
-    // Last Session Card
-    private func lastSessionCard(_ recording: Recording) -> some View {
-        Button {
-            currentScreen = .feedback(recording)
-        } label: {
-            HStack(spacing: AppTheme.Spacing.md) {
-                ZStack {
-                    Circle()
-                        .fill(AppTheme.accentMuted)
-                        .frame(width: 36, height: 36)
-                    
-                    Image(systemName: recording.mode?.icon ?? "waveform")
-                                        .font(.system(size: 14, weight: .medium))
-                                        .foregroundColor(AppTheme.accent)
-                }
-                
-                // Session details
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Last Session")
-                        .font(AppTheme.Fonts.smallLabel)
-                        .foregroundColor(AppTheme.tertiaryText)
-                    
-                    // When it was recorded
-                    let modeText = recording.mode?.displayName ?? ""
-                                    let separator = modeText.isEmpty ? "" : " · "
-                                    Text("\(modeText)\(separator)\(formatDuration(recording.duration)) · \(recording.pauses.count) pauses · \(timeAgo(recording.date))")
-                                        .font(AppTheme.Fonts.caption)
-                                        .foregroundColor(AppTheme.secondaryText)
-                }
-                
-                Spacer()
-                
-                Image(systemName: "arrow.right.circle.fill")
-                    .font(.system(size: 20))
-                    .foregroundColor(AppTheme.accent.opacity(0.4))
-            }
-            .padding(AppTheme.Spacing.md)
-            .background(
-                RoundedRectangle(cornerRadius: AppTheme.Radius.card)
-                    .fill(AppTheme.cardBackground)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: AppTheme.Radius.card)
-                            .stroke(AppTheme.border, lineWidth: 1)
-                    )
-            )
-        }
-        .buttonStyle(PressableButtonStyle())
-        .padding(.horizontal, AppTheme.Spacing.lg)
-        .accessibilityLabel("Last session: \(formatDuration(recording.duration)), \(recording.pauses.count) pauses, \(timeAgo(recording.date)). Tap to view history.")
-    }
-    
     // Mode List
     private var modeList: some View {
         VStack(spacing: AppTheme.Spacing.md) {
-            
-            // Section label
-            HStack {
-                Text("PRACTICE MODE")
-                    .font(AppTheme.Fonts.smallLabel)
-                    .foregroundColor(AppTheme.tertiaryText)
-                    .tracking(0.8)
-                Spacer()
-            }
-            .padding(.horizontal, AppTheme.Spacing.lg)
-            
+            // List of each mode
             ForEach(Array(PracticeMode.allCases.enumerated()), id: \.element) { index, mode in
                 PracticeCard(
                     icon: mode.icon,
@@ -193,7 +85,7 @@ struct HomeView: View {
                     }
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
                 }
-                // Staggered entrance animation
+                // Animated Entrance of modes
                 .opacity(appeared ? 1 : 0)
                 .offset(y: appeared ? 0 : 20)
                 .animation(
@@ -209,7 +101,6 @@ struct HomeView: View {
     
     private var actionButtons: some View {
         VStack(spacing: AppTheme.Spacing.md) {
-            
             Button {
                 guard let mode = selectedMode else { return }
                 currentScreen = .notes(mode)
@@ -227,11 +118,12 @@ struct HomeView: View {
                         .fill(canStart ? AppTheme.accent : AppTheme.cardBackground)
                 )
             }
+            // Needs to select mode to advance
             .disabled(!canStart)
             .accessibilityHint(canStart
                                ? "Opens the notes editor before your session"
                                : "Select a practice mode first")
-            
+            // Skips to grounding
             Button {
                 guard let mode = selectedMode else { return }
                 NotesStore.shared.currentNotes = nil
@@ -266,26 +158,6 @@ struct HomeView: View {
             .offset(y: -30),
             alignment: .top
         )
-    }
-    
-    
-    // Recording Duration formatting
-    private func formatDuration(_ duration: TimeInterval) -> String {
-        let minutes = Int(duration) / 60
-        let seconds = Int(duration) % 60
-        
-        if minutes > 0 {
-            return "\(minutes)m \(seconds)s"
-        } else {
-            return "\(seconds)s"
-        }
-    }
-    
-    // How long ago it was recorded
-    private func timeAgo(_ date: Date) -> String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .abbreviated
-        return formatter.localizedString(for: date, relativeTo: Date())
     }
 }
 

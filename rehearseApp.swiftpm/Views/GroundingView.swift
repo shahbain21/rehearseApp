@@ -102,7 +102,7 @@ struct GroundingView: View {
     // Countdown Section
     private var countdownSection: some View {
         VStack(spacing: AppTheme.Spacing.lg) {
-            // Progress dots
+            // Progress dots glow after every second
             HStack(spacing: AppTheme.Spacing.sm) {
                 ForEach(0..<6, id: \.self) { index in
                     Circle()
@@ -174,6 +174,7 @@ struct GroundingView: View {
         }
     }
     
+    // Resets the timers
     private func cleanupTimers() {
         breathingTimer?.invalidate()
         breathingTimer = nil

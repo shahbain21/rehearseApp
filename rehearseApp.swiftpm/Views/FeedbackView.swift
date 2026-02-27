@@ -5,34 +5,27 @@
 //  Created by Mohamed Shahbain on 1/1/26.
 //
 
-import Speech
 import SwiftUI
 
-// MARK: - FeedbackView
+// FeedbackView
 
 struct FeedbackView: View {
     @Binding var currentScreen: AppScreen
     let recording: Recording
     @ObservedObject var audioManager: AudioManager
 
-    @State private var selectedTab: FeedbackTab = .overview
     @State private var feedback: PresentationFeedback?
     @State private var isTranscribing = false
     @State private var transcriptError: String?
+    @State private var transcript: TranscriptResult?
 
     var body: some View {
         ZStack {
             AppTheme.background.ignoresSafeArea()
-
+            // Loading until feedback is generated
             if let feedback {
                 VStack(spacing: 0) {
-
                     topBar
-
-                    FeedbackTabSelector(selectedTab: $selectedTab)
-                        .padding(.horizontal, AppTheme.Spacing.lg)
-                        .padding(.bottom, AppTheme.Spacing.lg)
-
                     // Transcription status
                     if isTranscribing {
                         HStack(spacing: 8) {
@@ -45,6 +38,7 @@ struct FeedbackView: View {
                         }
                         .padding(.bottom, AppTheme.Spacing.sm)
                     } else if transcriptError != nil {
+                        // Appears of the transcription fails
                         HStack(spacing: 6) {
                             Image(systemName: "exclamationmark.triangle")
                                 .font(.system(size: 12))
@@ -56,34 +50,62 @@ struct FeedbackView: View {
                     }
 
                     ScrollView(showsIndicators: false) {
-                        VStack(spacing: AppTheme.Spacing.xl) {
-                            switch selectedTab {
-                            case .overview:
-                                OverviewSection(
-                                    feedback: feedback,
-                                    recording: recording
+                        VStack(spacing: AppTheme.Spacing.lg) {
+                            // Provide score for performance
+                            ScoreCard(
+                                score: feedback.overallScore,
+                                tone: feedback.tone,
+                                duration: feedback.durationText
+                            )
+
+                            // An overall summary
+                            Text(feedback.summary)
+                                .font(AppTheme.Fonts.screenSubtitle)
+                                .foregroundColor(AppTheme.secondaryText)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, AppTheme.Spacing.lg)
+
+                            // Expandable metric cards
+                            ForEach(feedback.metrics, id: \.name) { metric in
+                                ExpandableMetricCard(metric: metric)
+                            }
+
+                            // Vocal Energy metrics
+                            if let samples = recording.volumeSamples, !samples.isEmpty {
+                                ExpandableVocalEnergyCard(samples: samples)
+                            }
+
+                            // Transcript-based cards
+                            if let transcript {
+                                ExpandableFillerWordCard(
+                                    result: FillerWordAnalyzer.analyze(transcript)
                                 )
-                            case .details:
-                                DetailsSection(
-                                    feedback: feedback,
-                                    recording: recording
+
+                                ExpandableWPMCard(
+                                    result: WPMAnalyzer.analyze(transcript)
                                 )
-                            case .improve:
-                                ImproveSection(
-                                    feedback: feedback,
-                                    onReflect: {
-                                        currentScreen = .reflection(recording)
-                                    },
-                                    onPracticeAgain: {
-                                        if let mode = recording.mode {
-                                            currentScreen = .grounding(mode)
-                                        } else {
-                                            currentScreen = .home
-                                        }
-                                    }
+
+                                ExpandableRepeatedPhraseCard(
+                                    result: RepeatedPhraseAnalyzer.analyze(transcript)
                                 )
                             }
 
+                            // Key insight based off stats
+                            VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
+                                Text("KEY INSIGHT")
+                                    .font(AppTheme.Fonts.smallLabel)
+                                    .foregroundColor(AppTheme.tertiaryText)
+                                    .tracking(0.8)
+
+                                ForEach(feedback.insights.prefix(2)) { insight in
+                                    InsightRow(insight: insight)
+                                }
+                            }
+                            .padding(AppTheme.Spacing.lg)
+                            .background(AppTheme.cardBackground)
+                            .cornerRadius(AppTheme.Radius.card)
+                            bottomActions
+                            // Shows any saved reflections
                             if let reflection = recording.reflection {
                                 ReflectionSummaryCard(reflection: reflection)
                             }
@@ -98,37 +120,43 @@ struct FeedbackView: View {
             }
         }
         .task {
+            // Generate feedback
             if feedback == nil {
                 feedback = FeedbackGenerator.generate(from: recording)
             }
+            // Reuse existing transcript
+            if let existing = recording.transcript {
+                transcript = existing
+                return
+            }
 
             guard recording.url.path != "/dev/null" else { return }
-            guard recording.transcript == nil else { return }
 
+            // Small pause
             try? await Task.sleep(nanoseconds: 2_000_000_000)
             guard !Task.isCancelled else { return }
 
             isTranscribing = true
-            defer { isTranscribing = false }
-
+            
+            // Transcription occurs
             do {
-                let transcript = try await SpeechAnalyzer.transcribe(url: recording.url)
-
+                let result = try await SpeechAnalyzer.transcribe(url: recording.url)
                 guard !Task.isCancelled else { return }
-
-                audioManager.updateTranscript(transcript, for: recording)
-
+                // updates transcript and feedback
+                audioManager.updateTranscript(result, for: recording)
                 var updated = recording
-                updated.transcript = transcript
+                updated.transcript = result
                 feedback = FeedbackGenerator.generate(from: updated)
+                transcript = result
+                isTranscribing = false
             } catch {
+                // if it fails, show fail message
                 transcriptError = error.localizedDescription
+                isTranscribing = false
                 print("Transcription failed:", error)
             }
         }
     }
-    
-    // MARK: - Top Bar
 
     private var topBar: some View {
         HStack {
@@ -142,15 +170,12 @@ struct FeedbackView: View {
                     .contentShape(Rectangle())
             }
             .accessibilityLabel("Back to history")
-
             Spacer()
-
             Text("Feedback")
                 .font(AppTheme.Fonts.navTitle)
                 .foregroundColor(AppTheme.primaryText)
-
             Spacer()
-
+            // Button to play the audio
             Button {
                 audioManager.togglePlayback(for: recording)
             } label: {
@@ -170,50 +195,56 @@ struct FeedbackView: View {
         .padding(.horizontal, AppTheme.Spacing.lg)
         .padding(.vertical, AppTheme.Spacing.lg)
     }
-}
 
-// MARK: - Feedback Tab
 
-enum FeedbackTab: String, CaseIterable {
-    case overview = "Overview"
-    case details = "Details"
-    case improve = "Improve"
-}
-
-// MARK: - Tab Selector
-
-struct FeedbackTabSelector: View {
-    @Binding var selectedTab: FeedbackTab
-
-    var body: some View {
-        HStack(spacing: AppTheme.Spacing.sm) {
-            ForEach(FeedbackTab.allCases, id: \.self) { tab in
-                Button {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        selectedTab = tab
-                    }
-                } label: {
-                    Text(tab.rawValue)
-                        .font(AppTheme.Fonts.smallLabel)
-                        .foregroundColor(selectedTab == tab
-                                         ? AppTheme.primaryText
-                                         : AppTheme.tertiaryText)
-                        .padding(.horizontal, AppTheme.Spacing.lg)
-                        .padding(.vertical, 10)
-                        .background(
-                            Capsule()
-                                .fill(selectedTab == tab
-                                      ? AppTheme.accent
-                                      : AppTheme.cardBackground)
-                        )
+    private var bottomActions: some View {
+        VStack(spacing: AppTheme.Spacing.md) {
+            // Button to add reflection
+            Button {
+                currentScreen = .reflection(recording)
+            } label: {
+                HStack {
+                    Image(systemName: "brain.head.profile")
+                    Text("Reflect on This Session")
                 }
-                .buttonStyle(PressableButtonStyle())
+                .font(AppTheme.Fonts.buttonLabel)
+                .foregroundColor(AppTheme.primaryText)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, AppTheme.Spacing.lg)
+                .background(
+                    RoundedRectangle(cornerRadius: AppTheme.Radius.button)
+                        .fill(AppTheme.accent)
+                )
             }
+            .accessibilityHint("Opens the reflection screen for this session")
+            // Button to record again
+            Button {
+                if let mode = recording.mode {
+                    currentScreen = .grounding(mode)
+                } else {
+                    currentScreen = .home
+                }
+            } label: {
+                HStack {
+                    Image(systemName: "arrow.counterclockwise")
+                    Text("Practice Again")
+                }
+                .font(AppTheme.Fonts.secondaryButton)
+                .foregroundColor(AppTheme.secondaryText)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, AppTheme.Spacing.md)
+                .background(
+                    RoundedRectangle(cornerRadius: AppTheme.Radius.button)
+                        .stroke(AppTheme.border, lineWidth: 1)
+                )
+            }
+            .accessibilityHint("Starts a new practice session with the same mode")
         }
     }
 }
 
-// MARK: - Previews
+
+// Preview
 
 #Preview("Feedback View") {
     let recording = Recording(
@@ -247,31 +278,11 @@ struct FeedbackTabSelector: View {
         )
         r.reflection = Reflection(
             mood: "Great",
-            tags: ["Good energy", "Stayed calm", "Strong opening"],
             note: "Felt really prepared this time.",
             date: Date()
         )
         return r
     }()
-
-    FeedbackView(
-        currentScreen: .constant(.feedback(recording)),
-        recording: recording,
-        audioManager: AudioManager()
-    )
-}
-
-#Preview("Feedback - Needs Work") {
-    let recording = Recording(
-        id: UUID(),
-        url: URL(fileURLWithPath: "/dev/null"),
-        date: Date(),
-        duration: 60,
-        speakingTime: 25,
-        pauses: [2.1, 3.5, 2.8, 4.2, 1.9, 2.5],
-        notes: nil,
-        volumeSamples: [-42, -44, -43, -45, -42, -44, -43, -42]
-    )
 
     FeedbackView(
         currentScreen: .constant(.feedback(recording)),

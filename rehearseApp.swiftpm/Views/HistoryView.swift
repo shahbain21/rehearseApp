@@ -16,7 +16,6 @@ struct HistoryView: View {
     var body: some View {
         ZStack {
             AppTheme.background.ignoresSafeArea()
-
             VStack(spacing: 0) {
                 topBar
                 if audioManager.recordings.isEmpty {
@@ -73,23 +72,20 @@ struct HistoryView: View {
     
     private var statsSummary: some View {
         HStack(spacing: AppTheme.Spacing.lg) {
-            // Total sessions
+            // Get total sessions from audio manager
             StatBadge(
                 value: "\(audioManager.recordings.count)",
                 label: "Sessions"
             )
-            
-            // Total practice time
+            //
             StatBadge(
                 value: totalPracticeTime,
                 label: "Total Time"
             )
             
-            // Streak
             StatBadge(
                 value: "\(practiceStreak)",
                 label: "Day Streak",
-                icon: practiceStreak >= 3 ? "🔥" : nil
             )
         }
         .padding(AppTheme.Spacing.lg)
@@ -204,6 +200,7 @@ struct HistoryView: View {
         var groups: [String: [Recording]] = [:]
         let order = ["Today", "Yesterday", "This Week", "Earlier"]
         
+        // Checks when it was recorded and then groups them
         for recording in filteredRecordings {
             let key: String
             if calendar.isDateInToday(recording.date) {
@@ -226,7 +223,7 @@ struct HistoryView: View {
         }
     }
     
-    // Formatting for the total practice time
+    // Calculates total practice time
     private var totalPracticeTime: String {
         let total = audioManager.recordings.reduce(0) { $0 + $1.duration }
         let totalMinutes = Int(total) / 60
@@ -249,18 +246,16 @@ struct HistoryView: View {
         let dates = Set(audioManager.recordings.map {
             calendar.startOfDay(for: $0.date)
         })
-        
         var streak = 0
         var checkDate = calendar.startOfDay(for: Date())
         
-        // Check if today has a session, if not start from yesterday
+        // Starts from yesterday if you haven't recorded yet that day
         if !dates.contains(checkDate) {
             guard let yesterday = calendar.date(byAdding: .day, value: -1, to: checkDate) else {
                 return 0
             }
             checkDate = yesterday
         }
-        
         // Count consecutive days backwards
         while dates.contains(checkDate) {
             streak += 1
@@ -269,7 +264,6 @@ struct HistoryView: View {
             }
             checkDate = previousDay
         }
-        
         return streak
     }
 }
@@ -299,21 +293,14 @@ enum ModeFilter: CaseIterable {
     }
 }
 
-// MARK: - Stat Badge
-// ADDED: Small stat display for the summary card
-
+// Small stat display for the summary card
 struct StatBadge: View {
     let value: String
     let label: String
-    var icon: String? = nil
     
     var body: some View {
         VStack(spacing: AppTheme.Spacing.xs) {
             HStack(spacing: 2) {
-                if let icon = icon {
-                    Text(icon)
-                        .font(.system(size: 14))
-                }
                 Text(value)
                     .font(.system(size: 20, weight: .bold))
                     .foregroundColor(AppTheme.primaryText)
@@ -392,15 +379,10 @@ struct RecordingRow: View {
 
     var body: some View {
         HStack(spacing: AppTheme.Spacing.md) {
-            
             playButton
-            
             recordingInfo
-            
             Spacer()
-            
             scoreBadge
-            
             HStack(spacing: AppTheme.Spacing.sm) {
                 Button {
                     showDeleteConfirmation = true
@@ -475,22 +457,19 @@ struct RecordingRow: View {
     
     private var recordingInfo: some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.xs) {
-            // Date + playing indicator
             HStack(spacing: AppTheme.Spacing.sm) {
+                // Date of recording
                 Text(formatDate(recording.date))
                     .font(AppTheme.Fonts.cardTitle)
                     .foregroundColor(AppTheme.primaryText)
-                    // ADDED: Prevent date from wrapping
                     .lineLimit(1)
                 
                 if isPlaying {
                     PlayingIndicator()
                 }
             }
-            
-            // CHANGED: Mode badge + duration + pauses all on one row
+            // Display the mode
             HStack(spacing: AppTheme.Spacing.sm) {
-                // Mode badge
                 if let mode = recording.mode {
                     Text(mode.shortName)
                         .font(.system(size: 10, weight: .medium))
@@ -500,8 +479,7 @@ struct RecordingRow: View {
                         .background(AppTheme.accentMuted)
                         .cornerRadius(4)
                 }
-                
-                // Duration
+                // Audio length
                 HStack(spacing: 2) {
                     Image(systemName: "clock")
                         .font(.system(size: 9))
@@ -509,8 +487,7 @@ struct RecordingRow: View {
                         .font(.system(size: 11))
                 }
                 .foregroundColor(AppTheme.tertiaryText)
-                
-                // Pauses
+                // Number of pauses
                 HStack(spacing: 2) {
                     Image(systemName: "pause.circle")
                         .font(.system(size: 9))
@@ -519,8 +496,7 @@ struct RecordingRow: View {
                 }
                 .foregroundColor(AppTheme.tertiaryText)
             }
-
-            // Indicators — notes and reflection
+            // Whether the recording has notes/ a reflection
             HStack(spacing: AppTheme.Spacing.sm) {
                 if let notes = recording.notes, !notes.isEmpty {
                     HStack(spacing: 2) {
@@ -575,9 +551,7 @@ struct RecordingRow: View {
         default:       return .orange
         }
     }
-    
-    // MARK: - Card Background
-    
+        
     private var cardBackground: some View {
         RoundedRectangle(cornerRadius: AppTheme.Radius.card)
             .fill(AppTheme.cardBackground)
@@ -592,18 +566,15 @@ struct RecordingRow: View {
             )
     }
     
-    // Helpers
     
     private func formatDate(_ date: Date) -> String {
         let calendar = Calendar.current
         
         if calendar.isDateInToday(date) {
-            // CHANGED: Shorter format — "Today, 4:30 PM"
             return "Today, " + date.formatted(date: .omitted, time: .shortened)
         } else if calendar.isDateInYesterday(date) {
             return "Yesterday"
         } else {
-            // CHANGED: Shorter format — "Jan 15"
             return date.formatted(.dateTime.month(.abbreviated).day())
         }
     }
@@ -620,8 +591,7 @@ struct RecordingRow: View {
     }
 }
 
-// Spinning Ring Animation
-
+// Spinning Ring animation when clicked
 struct SpinningRing: View {
     @State private var rotation: Double = 0
     
@@ -638,8 +608,7 @@ struct SpinningRing: View {
     }
 }
 
-// Animated Playing Indicator
-
+// Animated bars while audio plays
 struct PlayingIndicator: View {
     @State private var animating = false
     
@@ -660,8 +629,6 @@ struct PlayingIndicator: View {
         .onAppear { animating = true }
     }
 }
-
-// MARK: - Previews
 
 #Preview("History View") {
     let audioManager = AudioManager()

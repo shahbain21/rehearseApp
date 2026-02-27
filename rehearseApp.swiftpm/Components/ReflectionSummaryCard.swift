@@ -7,13 +7,11 @@
 
 import SwiftUI
 
-// ADDED: Displays a saved reflection inside FeedbackView
-// Shows mood, tags, and optional note in a clean card format
 
 struct ReflectionSummaryCard: View {
     let reflection: Reflection
     
-    // ADDED: Map mood string back to the enum for emoji/color
+    // Gets the mood from the session
     private var mood: ReflectionMood? {
         ReflectionMood.allCases.first { $0.label == reflection.mood }
     }
@@ -21,18 +19,16 @@ struct ReflectionSummaryCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.lg) {
             
-            // Section header
             Text("YOUR REFLECTION")
                 .font(AppTheme.Fonts.smallLabel)
                 .foregroundColor(AppTheme.tertiaryText)
                 .tracking(0.8)
             
-            // Mood row
+            // Displays mood from feedback as well as label and time
             if let mood = mood {
                 HStack(spacing: AppTheme.Spacing.md) {
-                    Text(mood.emoji)
-                        .font(.system(size: 24))
-                    
+                    Image(systemName: mood.symbol)
+                            .font(.system(size: 24, weight: .semibold))
                     VStack(alignment: .leading, spacing: AppTheme.Spacing.xs) {
                         Text("You felt \(mood.label.lowercased())")
                             .font(AppTheme.Fonts.cardTitle)
@@ -42,7 +38,6 @@ struct ReflectionSummaryCard: View {
                             .font(AppTheme.Fonts.smallLabel)
                             .foregroundColor(AppTheme.mutedText)
                     }
-                    
                     Spacer()
                 }
                 .padding(AppTheme.Spacing.md)
@@ -52,31 +47,7 @@ struct ReflectionSummaryCard: View {
                 )
             }
             
-            // Tags
-            if !reflection.tags.isEmpty {
-                VStack(alignment: .leading, spacing: AppTheme.Spacing.sm) {
-                    Text("What stood out")
-                        .font(AppTheme.Fonts.smallLabel)
-                        .foregroundColor(AppTheme.tertiaryText)
-                    
-                    // ADDED: Wrap tags in a flow layout
-                    FlowLayout(spacing: 6) {
-                        ForEach(reflection.tags, id: \.self) { tag in
-                            Text(tag)
-                                .font(AppTheme.Fonts.smallLabel)
-                                .foregroundColor(AppTheme.accent)
-                                .padding(.horizontal, AppTheme.Spacing.md)
-                                .padding(.vertical, 6)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 20)
-                                        .fill(AppTheme.accentMuted)
-                                )
-                        }
-                    }
-                }
-            }
-            
-            // Note
+            // Note from the session
             if !reflection.note.isEmpty {
                 VStack(alignment: .leading, spacing: AppTheme.Spacing.sm) {
                     Text("Note")
@@ -102,7 +73,6 @@ struct ReflectionSummaryCard: View {
         .cornerRadius(AppTheme.Radius.card)
     }
     
-    // ADDED: Relative time since reflection
     private var reflectionTimeAgo: String {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .abbreviated
@@ -117,7 +87,6 @@ struct ReflectionSummaryCard: View {
         ReflectionSummaryCard(
             reflection: Reflection(
                 mood: "Great",
-                tags: ["Good energy", "Stayed calm", "Strong opening"],
                 note: "I felt really prepared this time, the breathing exercise helped.",
                 date: Date().addingTimeInterval(-3600)
             )

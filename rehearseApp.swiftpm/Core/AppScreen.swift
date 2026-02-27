@@ -11,7 +11,8 @@ enum AppScreen {
     case recording(PracticeMode)
     case feedback(Recording)
     case history
-    case reflection(Recording?)  
+    case reflection(Recording?)
+    case onboarding
 }
 
 

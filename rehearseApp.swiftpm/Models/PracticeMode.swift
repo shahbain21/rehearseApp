@@ -13,8 +13,7 @@ enum PracticeMode: Codable, Hashable, CaseIterable {
     case storytelling
     case free
     
-    // Only free doesn't require notes
-    var requiresNotes: Bool {
+     var requiresNotes: Bool {
         self != .free
     }
     

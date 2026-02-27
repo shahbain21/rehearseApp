@@ -10,31 +10,29 @@
 import SwiftUI
 
 struct RecordingView: View {
-
+    
     @Binding var currentScreen: AppScreen
     @ObservedObject var audioManager: AudioManager
     let mode: PracticeMode
-
+    
     @State private var currentSlideIndex = 0
     @State private var showNotes = false
     @State private var showLeaveConfirmation = false
-
+    
     var body: some View {
         ZStack {
             AppTheme.background
                 .ignoresSafeArea()
-
+            
             VStack(spacing: AppTheme.Spacing.xl) {
                 topBar
                 Spacer()
-                
-                // Notes overlay
+                // Notes Slideshow if selected
                 if showNotes && !noteSlides.isEmpty {
                     notesCardView
                 }
                 Spacer()
-
-                // Waveform visualization
+                // Gets audio levels and creates waveformview from levels
                 MirroredWaveformView(
                     audioLevel: audioManager.currentAudioLevel,
                     barCount: 60,
@@ -43,31 +41,29 @@ struct RecordingView: View {
                 .frame(height: 120)
                 .padding(.horizontal, AppTheme.Spacing.lg)
                 Spacer()
-
-                // Timer
                 timerDisplay
                 Spacer()
-
-                // Controls
                 controlBar
             }
         }
         .onAppear {
+            // Reset metrics
             audioManager.elapsedTime = 0
             audioManager.speakingTime = 0
             audioManager.currentAudioLevel = 0.0
         }
+        // When user tries leaving mid recording
         .confirmationDialog(
             "Stop Recording?",
             isPresented: $showLeaveConfirmation,
             titleVisibility: .visible
         ) {
             Button("Stop & Discard", role: .destructive) {
-                audioManager.discardRecording() 
+                audioManager.discardRecording()
                 currentScreen = .home
             }
             Button("Stop & Save") {
-                audioManager.stopRecording(mode: mode) 
+                audioManager.stopRecording(mode: mode)
                 if let latest = audioManager.recordings.first {
                     currentScreen = .feedback(latest)
                 } else {
@@ -96,15 +92,11 @@ struct RecordingView: View {
                     .contentShape(Rectangle())
             }
             .accessibilityLabel("Leave recording")
-            
             Spacer()
-            
             Text(modeTitle)
                 .font(AppTheme.Fonts.smallLabel)
                 .foregroundColor(AppTheme.secondaryText)
-            
             Spacer()
-            
             Color.clear
                 .frame(width: 44, height: 44)
         }
@@ -115,6 +107,7 @@ struct RecordingView: View {
     // Presents notes in a card view
     private var notesCardView: some View {
         VStack(spacing: AppTheme.Spacing.md) {
+            // Divides the notes into note cards
             TabView(selection: $currentSlideIndex) {
                 ForEach(Array(noteSlides.enumerated()), id: \.offset) { index, slide in
                     noteCard(slide)
@@ -123,7 +116,6 @@ struct RecordingView: View {
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
             .frame(height: 160)
-            
             // Progress indicator
             notesProgress
         }
@@ -134,16 +126,19 @@ struct RecordingView: View {
     // Individual note card
     private func noteCard(_ text: String) -> some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.sm) {
+            // Splits text from notes into lines
             let lines = text.components(separatedBy: "\n")
                 .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
                 .filter { !$0.isEmpty }
             
+            // Gets the title from the lines
             if let title = lines.first {
                 Text(cleanLine(title))
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundColor(AppTheme.primaryText)
             }
             
+            // Rest of the lines become bullets
             if lines.count > 1 {
                 VStack(alignment: .leading, spacing: AppTheme.Spacing.xs) {
                     ForEach(Array(lines.dropFirst().enumerated()), id: \.offset) { _, line in
@@ -167,7 +162,7 @@ struct RecordingView: View {
         .padding(.horizontal, AppTheme.Spacing.xs)
     }
     
-    // Progress dots + slide counter
+    // Shows current slide number through dots and numbers
     private var notesProgress: some View {
         HStack(spacing: AppTheme.Spacing.sm) {
             if noteSlides.count <= 10 {
@@ -198,7 +193,7 @@ struct RecordingView: View {
                 .font(.system(size: 64, weight: .light, design: .rounded))
                 .foregroundColor(AppTheme.primaryText)
                 .monospacedDigit()
-
+            
             Text(statusText)
                 .font(AppTheme.Fonts.secondaryButton)
                 .foregroundColor(AppTheme.tertiaryText)
@@ -228,8 +223,7 @@ struct RecordingView: View {
                 .contentShape(Rectangle())
             }
             .accessibilityLabel("View history")
-
-            // Record / Stop Button
+            
             Button {
                 toggleRecording()
             } label: {
@@ -238,14 +232,12 @@ struct RecordingView: View {
                     Circle()
                         .stroke(AppTheme.mutedText, lineWidth: 4)
                         .frame(width: 80, height: 80)
-                    
+                    // Stop/Start Button
                     if audioManager.isRecording {
-                        // Stop button (rounded square)
                         RoundedRectangle(cornerRadius: 8)
                             .fill(AppTheme.destructive)
                             .frame(width: 32, height: 32)
                     } else {
-                        // Record button (circle)
                         Circle()
                             .fill(AppTheme.destructive)
                             .frame(width: 64, height: 64)
@@ -279,10 +271,8 @@ struct RecordingView: View {
         }
         .padding(.bottom, AppTheme.Spacing.xxl)
     }
-
-    // Computed Properties
-
-    // Split up by new line separators
+        
+    // Splits up notes by new line separators
     private var noteSlides: [String] {
         guard let notes = NotesStore.shared.currentNotes else { return [] }
         
@@ -292,7 +282,7 @@ struct RecordingView: View {
             .filter { !$0.isEmpty }
     }
     
-    // Strips leading "- " or "• " for cleaner card text
+    // Removes any leading "- " or "• " for cleaner card text
     private func cleanLine(_ line: String) -> String {
         var cleaned = line.trimmingCharacters(in: .whitespacesAndNewlines)
         
@@ -306,7 +296,7 @@ struct RecordingView: View {
         
         return cleaned
     }
-
+    
     private var modeTitle: String {
         switch mode {
         case .interview:    return "Interview Practice"
@@ -325,25 +315,26 @@ struct RecordingView: View {
             return "Tap to record"
         }
     }
-
-    // Actions
+    
     private func toggleRecording() {
+        // If recording, stop and move to feedback
         if audioManager.isRecording {
             audioManager.stopRecording(mode: mode)
             UINotificationFeedbackGenerator().notificationOccurred(.success)
-
+            
             if let latest = audioManager.recordings.first {
                 withAnimation {
                     currentScreen = .feedback(latest)
                 }
             }
         } else {
+            // start recording, reset notes
             currentSlideIndex = 0
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
             audioManager.startRecording()
         }
     }
-
+    
     private func formatTime(_ time: TimeInterval) -> String {
         let minutes = Int(time) / 60
         let seconds = Int(time) % 60
@@ -351,29 +342,31 @@ struct RecordingView: View {
     }
 }
 
+// Previews
+
 #Preview("Recording View - Cards") {
     let audioManager = AudioManager()
-
+    
     let _ = {
         NotesStore.shared.currentNotes = """
         Introduction
         - Hook / attention grabber
         - Overview of what you'll cover
-
+        
         Main Point 1
         - Supporting detail
         - Example or data
-
+        
         Main Point 2
         - Supporting detail
         - Example or data
-
+        
         Conclusion
         - Summary of key points
         - Call to action
         """
     }()
-
+    
     RecordingView(
         currentScreen: .constant(.recording(.presentation)),
         audioManager: audioManager,

@@ -7,10 +7,10 @@
 
 import SwiftUI
 
+// Struct for reflections
 struct Reflection: Codable {
     let mood: String
-    let tags: [String]
-    let note: String         
+    let note: String
     let date: Date
 }
 
@@ -23,6 +23,8 @@ struct ReflectionView: View {
     @State private var note = ""
     @State private var selectedTags: Set<String> = []
     @State private var showingPrompts = false
+    
+    // Used to hide keyboard
     @FocusState private var isNoteFocused: Bool
 
     var body: some View {
@@ -38,12 +40,7 @@ struct ReflectionView: View {
                     VStack(spacing: AppTheme.Spacing.xl) {
                         performanceHeader
                         moodSection
-                        tagsSection
                         noteSection
-                        // Session summary
-                        if let recording = recording {
-                            SessionSummaryCard(recording: recording)
-                        }
                     }
                     .padding(.horizontal, AppTheme.Spacing.lg)
                     .padding(.bottom, 140)
@@ -58,6 +55,7 @@ struct ReflectionView: View {
     
     private var topBar: some View {
         HStack {
+            // Transition to history page
             Button {
                 currentScreen = .history
             } label: {
@@ -77,7 +75,7 @@ struct ReflectionView: View {
             
             Spacer()
             
-            // Provides questions to reflect over
+            // Provides some questions to reflect over
             Button {
                 showingPrompts = true
             } label: {
@@ -93,7 +91,7 @@ struct ReflectionView: View {
         .padding(.vertical, AppTheme.Spacing.lg)
     }
     
-    // Performance Header
+    // Provides a quick summary of the performance
     private var performanceHeader: some View {
         VStack(spacing: AppTheme.Spacing.md) {
             ZStack {
@@ -133,11 +131,11 @@ struct ReflectionView: View {
         let ratio = recording.speakingRatio
         
         if ratio > 0.75 {
-            return "Strong session 🔥"
+            return "Strong session"
         } else if ratio > 0.5 {
-            return "Solid practice 👏"
+            return "Solid practice"
         } else {
-            return "Good effort 💪"
+            return "Good effort"
         }
     }
     
@@ -148,7 +146,6 @@ struct ReflectionView: View {
         }
         
         let speakingPercent = Int(recording.speakingRatio * 100)
-        let pauseCount = recording.pauses.count
         let duration = Int(recording.duration)
         let minutes = duration / 60
         let seconds = duration % 60
@@ -169,14 +166,6 @@ struct ReflectionView: View {
             parts.append("with a good balance of speaking and pauses.")
         } else {
             parts.append("with plenty of pauses to gather your thoughts.")
-        }
-        
-        // Pause insight
-        let longPauses = recording.pauses.filter { $0 > 2.0 }.count
-        if longPauses > 0 {
-            parts.append("\(longPauses) longer pause\(longPauses == 1 ? "" : "s") — those can be intentional or worth working on.")
-        } else if pauseCount > 0 {
-            parts.append("Your pauses were short and natural.")
         }
         
         return parts.joined(separator: " ")
@@ -209,29 +198,6 @@ struct ReflectionView: View {
         .cornerRadius(AppTheme.Radius.card)
     }
     
-    // Tags to summarize the session
-    private var tagsSection: some View {
-        VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
-            Text("What stood out?")
-                .font(AppTheme.Fonts.smallLabel)
-                .foregroundColor(AppTheme.tertiaryText)
-                .tracking(0.5)
-            
-            FlowLayout(spacing: 8) {
-                ForEach(quickTags, id: \.self) { tag in
-                    QuickTagButton(
-                        tag: tag,
-                        isSelected: selectedTags.contains(tag)
-                    ) {
-                        toggleTag(tag)
-                    }
-                }
-            }
-        }
-        .padding(AppTheme.Spacing.lg)
-        .background(AppTheme.cardBackground)
-        .cornerRadius(AppTheme.Radius.card)
-    }
     
     // Optional Notes section
     private var noteSection: some View {
@@ -286,9 +252,10 @@ struct ReflectionView: View {
         .cornerRadius(AppTheme.Radius.card)
     }
     
-    // Action Buttons
+    // Buttons for completing reflection
     private var actionButtons: some View {
         VStack(spacing: AppTheme.Spacing.md) {
+            // Button if you're finished
             Button {
                 saveReflection()
                 currentScreen = .history
@@ -308,6 +275,7 @@ struct ReflectionView: View {
             }
             .accessibilityHint("Saves your reflection and returns to history")
             
+            // Button if you want to skip
             Button {
                 currentScreen = .history
             } label: {
@@ -342,37 +310,10 @@ struct ReflectionView: View {
         )
     }
         
-    private var quickTags: [String] {
-        [
-            "Felt rushed",
-            "Good energy",
-            "Lost track",
-            "Stayed calm",
-            "Need more prep",
-            "Strong opening",
-            "Weak ending",
-            "Good pace",
-            "Too many pauses",
-            "Confident"
-        ]
-    }
-    
-    private func toggleTag(_ tag: String) {
-        withAnimation(.easeInOut(duration: 0.15)) {
-            if selectedTags.contains(tag) {
-                selectedTags.remove(tag)
-            } else {
-                selectedTags.insert(tag)
-            }
-        }
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-    }
-    
     // Saves reflection data to the recording
     private func saveReflection() {
         let reflection = Reflection(
             mood: selectedMood?.label ?? "None",
-            tags: Array(selectedTags),
             note: note.trimmingCharacters(in: .whitespacesAndNewlines),
             date: Date()
         )
@@ -390,14 +331,15 @@ enum ReflectionMood: CaseIterable {
     case okay
     case rough
     
-    var emoji: String {
+    var symbol: String {
         switch self {
-        case .great: return "🔥"
-        case .good:  return "😊"
-        case .okay:  return "😐"
-        case .rough: return "😤"
+        case .great: return "flame.fill"
+        case .good:  return "hand.thumbsup.fill"
+        case .okay:  return "minus.circle.fill"
+        case .rough: return "exclamationmark.triangle.fill"
         }
     }
+
     
     var label: String {
         switch self {
@@ -426,8 +368,10 @@ struct MoodButton: View {
     var body: some View {
         Button(action: action) {
             VStack(spacing: AppTheme.Spacing.sm) {
-                Text(mood.emoji)
-                    .font(.system(size: 28))
+                Image(systemName: mood.symbol)
+                    .font(.system(size: 24, weight: .semibold))
+                    .foregroundColor(isSelected ? mood.color : AppTheme.tertiaryText)
+
                 
                 Text(mood.label)
                     .font(AppTheme.Fonts.smallLabel)
@@ -450,283 +394,6 @@ struct MoodButton: View {
         .buttonStyle(PressableButtonStyle())
         .accessibilityLabel("\(mood.label) mood")
         .accessibilityAddTraits(isSelected ? .isSelected : [])
-    }
-}
-
-
-
-struct QuickTagButton: View {
-    let tag: String
-    let isSelected: Bool
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            Text(tag)
-                .font(AppTheme.Fonts.smallLabel)
-                .foregroundColor(isSelected ? AppTheme.accent : AppTheme.secondaryText)
-                .padding(.horizontal, AppTheme.Spacing.md)
-                .padding(.vertical, AppTheme.Spacing.sm)
-                .background(
-                    RoundedRectangle(cornerRadius: 20)
-                        .fill(isSelected ? AppTheme.accentMuted : AppTheme.cardBackground)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 20)
-                        .stroke(
-                            isSelected ? AppTheme.accent.opacity(0.4) : Color.clear,
-                            lineWidth: 1
-                        )
-                )
-        }
-        .buttonStyle(PressableButtonStyle())
-        .accessibilityLabel(tag)
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
-    }
-}
-
-
-struct FlowLayout: Layout {
-    var spacing: CGFloat = 8
-    
-    // Measure size
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let result = FlowResult(in: proposal.width ?? 0, subviews: subviews, spacing: spacing)
-        return result.size
-    }
-    
-    // Place view at calculated position
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        let result = FlowResult(in: bounds.width, subviews: subviews, spacing: spacing)
-        for (index, subview) in subviews.enumerated() {
-            subview.place(
-                at: CGPoint(
-                    x: bounds.minX + result.positions[index].x,
-                    y: bounds.minY + result.positions[index].y
-                ),
-                proposal: .unspecified
-            )
-        }
-    }
-    
-    // Finds the positions of the tags
-    struct FlowResult {
-        var size: CGSize = .zero
-        var positions: [CGPoint] = []
-        
-        init(in maxWidth: CGFloat, subviews: Subviews, spacing: CGFloat) {
-            var x: CGFloat = 0
-            var y: CGFloat = 0
-            var rowHeight: CGFloat = 0
-            
-            for subview in subviews {
-                let size = subview.sizeThatFits(.unspecified)
-                
-                if x + size.width > maxWidth && x > 0 {
-                    x = 0
-                    y += rowHeight + spacing
-                    rowHeight = 0
-                }
-                
-                positions.append(CGPoint(x: x, y: y))
-                rowHeight = max(rowHeight, size.height)
-                x += size.width + spacing
-                
-                self.size.width = max(self.size.width, x)
-            }
-            
-            self.size.height = y + rowHeight
-        }
-    }
-}
-
-// Session stats
-struct SessionSummaryCard: View {
-    let recording: Recording
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
-            Text("SESSION SUMMARY")
-                .font(AppTheme.Fonts.smallLabel)
-                .foregroundColor(AppTheme.tertiaryText)
-                .tracking(0.8)
-            
-            HStack(spacing: AppTheme.Spacing.lg) {
-                SummaryItem(
-                    icon: "clock",
-                    value: formatDuration(recording.duration),
-                    label: "Duration"
-                )
-                
-                SummaryItem(
-                    icon: "waveform",
-                    value: "\(Int(recording.speakingRatio * 100))%",
-                    label: "Speaking"
-                )
-                
-                SummaryItem(
-                    icon: "pause.circle",
-                    value: "\(recording.pauses.count)",
-                    label: "Pauses"
-                )
-            }
-        }
-        .padding(AppTheme.Spacing.lg)
-        .background(AppTheme.cardBackground)
-        .cornerRadius(AppTheme.Radius.card)
-    }
-    
-    private func formatDuration(_ duration: TimeInterval) -> String {
-        let minutes = Int(duration) / 60
-        let seconds = Int(duration) % 60
-        return String(format: "%d:%02d", minutes, seconds)
-    }
-}
-
-struct SummaryItem: View {
-    let icon: String
-    let value: String
-    let label: String
-    
-    var body: some View {
-        VStack(spacing: 6) {
-            Image(systemName: icon)
-                .font(AppTheme.Fonts.iconFont)
-                .foregroundColor(AppTheme.accent)
-            
-            Text(value)
-                .font(.system(size: 18, weight: .bold))
-                .foregroundColor(AppTheme.primaryText)
-            
-            Text(label)
-                .font(AppTheme.Fonts.smallLabel)
-                .foregroundColor(AppTheme.tertiaryText)
-        }
-        .frame(maxWidth: .infinity)
-    }
-}
-
-
-struct ReflectionPromptsSheet: View {
-    @Environment(\.dismiss) var dismiss
-    
-    let prompts = [
-        ReflectionPrompt(
-            category: "Delivery",
-            questions: [
-                "Did I speak at a comfortable pace?",
-                "Were my pauses intentional or hesitant?",
-                "Did I sound confident?"
-            ]
-        ),
-        ReflectionPrompt(
-            category: "Content",
-            questions: [
-                "Did I cover all my main points?",
-                "Were my ideas organized logically?",
-                "Did I stay on topic?"
-            ]
-        ),
-        ReflectionPrompt(
-            category: "Mindset",
-            questions: [
-                "How did I feel before starting?",
-                "What triggered any nervousness?",
-                "When did I feel most confident?"
-            ]
-        ),
-        ReflectionPrompt(
-            category: "Growth",
-            questions: [
-                "What's one thing I did better than last time?",
-                "What's one thing I want to improve?",
-                "What would I tell someone else in my position?"
-            ]
-        )
-    ]
-    
-    var body: some View {
-        ZStack {
-            AppTheme.background.ignoresSafeArea()
-            
-            VStack(spacing: 0) {
-                // Handle
-                RoundedRectangle(cornerRadius: 2.5)
-                    .fill(AppTheme.mutedText)
-                    .frame(width: 36, height: 5)
-                    .padding(.top, 10)
-                
-                // Header
-                HStack {
-                    Text("Reflection Prompts")
-                        .font(AppTheme.Fonts.screenTitle)
-                        .foregroundColor(AppTheme.primaryText)
-                    
-                    Spacer()
-                    
-                    Button {
-                        dismiss()
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 24))
-                            .foregroundColor(AppTheme.tertiaryText)
-                            // ADDED: Proper tap target
-                            .frame(width: 44, height: 44)
-                            .contentShape(Rectangle())
-                    }
-                    .accessibilityLabel("Close prompts")
-                }
-                .padding(.horizontal, AppTheme.Spacing.lg)
-                .padding(.top, AppTheme.Spacing.lg)
-                
-                // Prompts
-                ScrollView {
-                    VStack(spacing: AppTheme.Spacing.lg) {
-                        ForEach(prompts, id: \.category) { prompt in
-                            PromptCategoryCard(prompt: prompt)
-                        }
-                    }
-                    .padding(.horizontal, AppTheme.Spacing.lg)
-                    .padding(.bottom, 30)
-                }
-            }
-        }
-        .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.hidden)
-    }
-}
-
-struct ReflectionPrompt {
-    let category: String
-    let questions: [String]
-}
-
-struct PromptCategoryCard: View {
-    let prompt: ReflectionPrompt
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
-            Text(prompt.category)
-                .font(AppTheme.Fonts.cardTitle)
-                .foregroundColor(AppTheme.accent)
-            
-            ForEach(prompt.questions, id: \.self) { question in
-                HStack(alignment: .top, spacing: 10) {
-                    Image(systemName: "circle.fill")
-                        .font(.system(size: 6))
-                        .foregroundColor(AppTheme.mutedText)
-                        .padding(.top, 6)
-                    
-                    Text(question)
-                        .font(AppTheme.Fonts.screenSubtitle)
-                        .foregroundColor(AppTheme.secondaryText)
-                }
-            }
-        }
-        .padding(AppTheme.Spacing.lg)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(AppTheme.cardBackground)
-        .cornerRadius(AppTheme.Radius.card)
     }
 }
 
